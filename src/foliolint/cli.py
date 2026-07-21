@@ -7,6 +7,7 @@ from typing import Annotated
 
 import typer
 
+from foliolint.remote import RemoteScanError, prepare_remote_repository
 from foliolint.report import render_markdown_report, render_text_report
 from foliolint.scanner import scan_project
 
@@ -45,6 +46,14 @@ FailUnderOption = Annotated[
         max=100,
         help="Exit with code 1 when the score is below this value.",
     ),
+]
+RepoUrlArgument = Annotated[
+    str,
+    typer.Argument(help="Public GitHub repository URL, for example https://github.com/OWNER/REPO."),
+]
+BranchOption = Annotated[
+    str | None,
+    typer.Option("--branch", help="Branch to download. Defaults to main, then master."),
 ]
 
 
@@ -87,6 +96,54 @@ def scan(
         return
     render_text_report(report, include_score=not no_score, explain=explain)
     _exit_if_under_threshold(report.score, fail_under)
+
+
+@app.command("scan-url")
+def scan_url(
+    url: RepoUrlArgument,
+    branch: BranchOption = None,
+    no_score: NoScoreOption = False,
+    explain: ExplainOption = False,
+    output_format: FormatOption = OutputFormat.text,
+    strict: StrictOption = False,
+    fail_under: FailUnderOption = None,
+) -> None:
+    """Download a public GitHub repository ZIP temporarily and scan it."""
+    if no_score and fail_under is not None:
+        typer.echo("Error: --fail-under cannot be used together with --no-score.", err=True)
+        raise typer.Exit(2)
+
+    try:
+        with prepare_remote_repository(url, branch=branch) as remote:
+            report = scan_project(remote.path, include_score=not no_score, strict=strict)
+    except RemoteScanError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(2) from error
+
+    _render_report(report, include_score=not no_score, explain=explain, output_format=output_format)
+    _exit_if_under_threshold(report.score, fail_under)
+
+
+def _render_report(
+    report,
+    *,
+    include_score: bool,
+    explain: bool,
+    output_format: OutputFormat,
+) -> None:
+    if output_format == OutputFormat.json:
+        typer.echo(
+            json.dumps(
+                report.to_dict(include_score=include_score, include_explanation=explain),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    if output_format == OutputFormat.markdown:
+        typer.echo(render_markdown_report(report, include_score=include_score))
+        return
+    render_text_report(report, include_score=include_score, explain=explain)
 
 
 def _exit_if_under_threshold(score: int | None, fail_under: int | None) -> None:
