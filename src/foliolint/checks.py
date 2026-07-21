@@ -369,13 +369,19 @@ def check_demo(path: Path, config: ShowcaseConfig) -> CheckResult:
 
 def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
     generated_dirs: set[str] = set()
+    ignored_local_paths: list[str] = []
     env_files: list[str] = []
     log_files: list[str] = []
     large_files: list[str] = []
     threshold_bytes = config.thresholds.large_file_mb * 1024 * 1024
+    gitignore_patterns = _read_gitignore_patterns(path)
 
     for item in _iter_paths(path, config):
         rel = item.relative_to(path).as_posix()
+        if _matches_gitignore(rel, item.is_dir(), gitignore_patterns):
+            if _is_common_hygiene_path(item):
+                ignored_local_paths.append(rel)
+            continue
         if item.is_dir() and item.name in GENERATED_DIRS:
             generated_dirs.add(rel)
             continue
@@ -431,6 +437,7 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
             "large_files": large_files,
             "env_files": env_files,
             "log_files": log_files,
+            "ignored_local_paths": ignored_local_paths[:20],
             "large_file_mb": config.thresholds.large_file_mb,
         },
         explanation=(
@@ -559,6 +566,49 @@ def _is_ignored(item: Path, root: Path, config: ShowcaseConfig) -> bool:
         return False
     ignored = {entry.strip("/\\") for entry in config.ignore.paths}
     return any(rel == entry or rel.startswith(f"{entry}/") for entry in ignored if entry)
+
+
+def _read_gitignore_patterns(root: Path) -> list[str]:
+    gitignore = root / ".gitignore"
+    if not gitignore.exists():
+        return []
+    patterns: list[str] = []
+    for line in _read_text(gitignore).splitlines():
+        pattern = line.strip()
+        if not pattern or pattern.startswith("#") or pattern.startswith("!"):
+            continue
+        patterns.append(pattern)
+    return patterns
+
+
+def _matches_gitignore(rel_path: str, is_dir: bool, patterns: list[str]) -> bool:
+    parts = rel_path.split("/")
+    for pattern in patterns:
+        normalized = pattern.strip("/")
+        if not normalized:
+            continue
+        dir_only = pattern.endswith("/")
+        if dir_only and not is_dir:
+            parent_parts = parts[:-1]
+            if "/" not in normalized and normalized in parent_parts:
+                return True
+            if "/".join(parent_parts).startswith(f"{normalized}/"):
+                return True
+            continue
+        if "/" not in normalized and normalized in parts:
+            return True
+        if rel_path == normalized or rel_path.startswith(f"{normalized}/"):
+            return True
+    return False
+
+
+def _is_common_hygiene_path(item: Path) -> bool:
+    return (
+        item.name in GENERATED_DIRS
+        or item.name == ".env"
+        or item.name.startswith(".env.")
+        or item.suffix.lower() == ".log"
+    )
 
 
 def _read_text(path: Path) -> str:

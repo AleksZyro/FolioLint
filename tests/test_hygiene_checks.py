@@ -23,6 +23,21 @@ def test_hygiene_check_detects_large_file(tmp_path: Path) -> None:
     assert "large.bin" in result.details["large_files"]
 
 
+def test_hygiene_check_ignores_gitignored_cache_dirs(tmp_path: Path) -> None:
+    (tmp_path / ".gitignore").write_text(".pytest_cache/\n__pycache__/\n", encoding="utf-8")
+    (tmp_path / ".pytest_cache").mkdir()
+    cache = tmp_path / "src" / "__pycache__"
+    cache.mkdir(parents=True)
+    (cache / "module.pyc").write_bytes(b"cache")
+
+    result = check_hygiene(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.details["generated_dirs"] == []
+    assert ".pytest_cache" in result.details["ignored_local_paths"]
+    assert "src/__pycache__" in result.details["ignored_local_paths"]
+
+
 def test_secret_check_detects_obvious_risk_hint(tmp_path: Path) -> None:
     (tmp_path / "settings.py").write_text("API" + "_KEY = 'not-real'\n", encoding="utf-8")
 
