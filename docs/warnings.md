@@ -45,6 +45,8 @@ In Git repositories, FolioLint uses `git ls-files` to focus hygiene warnings on 
 
 Outside Git repositories, FolioLint falls back to `.gitignore` heuristics.
 
+Remote `scan-url` checks use GitHub ZIP downloads, not full Git clones. This means Git-aware hygiene checks can be less precise than scans of local Git repositories.
+
 Before public sharing, check what is actually tracked by git.
 
 ## Secret-Risk Warnings

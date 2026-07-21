@@ -70,6 +70,17 @@ foliolint scan . --strict
 foliolint scan . --fail-under 75
 ```
 
+Remote scans for public GitHub repositories:
+
+```bash
+foliolint scan-url https://github.com/AleksZyro/FolioLint --explain
+foliolint scan-url https://github.com/OWNER/REPO --format json
+foliolint scan-url https://github.com/OWNER/REPO --format markdown
+foliolint scan-url https://github.com/OWNER/REPO --branch main
+```
+
+`scan PATH` checks a folder that already exists on your computer and does not need internet access. `scan-url URL` downloads a public GitHub repository as a temporary ZIP file, checks it locally, and deletes the downloaded files afterwards. It does not use a GitHub API key. Private repositories are not supported by `scan-url`, and large repositories can take longer to download.
+
 Local demo command:
 
 ```bash
