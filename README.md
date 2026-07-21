@@ -2,6 +2,8 @@
 
 FolioLint is a local Python CLI that checks whether a repository is prepared for public presentation. It focuses on portfolio and showcase readiness: README, setup, usage, tests, license, screenshots, demo hints, repository hygiene, large files and obvious secret risk hints.
 
+FolioLint helps you find boring but important repo presentation issues before sharing a project publicly.
+
 It is not a code quality tool, not a security scanner, not an AI tool and not a recruiter oracle. The goal is a repeatable local checklist with transparent scoring.
 
 ![FolioLint terminal preview](docs/assets/foliolint-scan.svg)
@@ -90,6 +92,25 @@ Demo              OK           Local start instructions found
 Hygiene           Warning      _site folder detected
 Secrets           OK           No obvious secret patterns found
 Metadata          OK           pyproject.toml found
+```
+
+JSON output is available for automation:
+
+```json
+{
+  "score": 90,
+  "status": "Showcase-ready",
+  "checks": [
+    {
+      "category": "README",
+      "status": "ok",
+      "message": "README hints found: purpose, setup, usage, tests, status or limitations, screenshot or demo.",
+      "points": 25,
+      "max_points": 25
+    }
+  ],
+  "recommendations": []
+}
 ```
 
 ## Score

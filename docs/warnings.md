@@ -41,6 +41,8 @@ Generated folders, cache folders and logs often appear during local development.
 - The files are intentional fixtures for tests.
 - Large demo media is intentionally stored in the repository and explained.
 
+FolioLint does not deduct points for common hygiene paths that match `.gitignore`; those paths are reported as local ignored details instead.
+
 Before public sharing, check what is actually tracked by git.
 
 ## Secret-Risk Warnings
@@ -54,4 +56,3 @@ A warning can be a false positive when:
 - The value is clearly not a real secret.
 
 Do not rely on FolioLint for security review. Use a dedicated secret scanner before publishing sensitive projects.
-
