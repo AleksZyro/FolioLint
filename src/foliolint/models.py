@@ -55,4 +55,3 @@ class ScanReport:
         if include_score:
             data = {"score": self.score, "status": self.status, **data}
         return data
-

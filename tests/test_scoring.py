@@ -35,4 +35,3 @@ def test_strict_mode_deducts_for_missing_ci() -> None:
 
     assert strict[0].points == 7
     assert "Strict mode" in strict[0].explanation
-

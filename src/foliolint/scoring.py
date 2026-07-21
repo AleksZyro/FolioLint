@@ -27,8 +27,7 @@ def apply_strict_mode(checks: list[CheckResult]) -> list[CheckResult]:
         explanation = check.explanation
         if explanation:
             explanation = (
-                f"{explanation} Strict mode deducted "
-                f"{check.points - new_points} point(s)."
+                f"{explanation} Strict mode deducted {check.points - new_points} point(s)."
             )
         else:
             explanation = f"Strict mode deducted {check.points - new_points} point(s)."

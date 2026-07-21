@@ -42,4 +42,3 @@ def _collect_recommendations(checks: list) -> list[str]:
                 recommendations.append(recommendation)
                 seen.add(recommendation)
     return recommendations[:8]
-

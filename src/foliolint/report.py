@@ -48,4 +48,3 @@ def render_text_report(
         output.print("[bold]Recommended next steps:[/bold]")
         for index, recommendation in enumerate(report.recommendations, start=1):
             output.print(f"{index}. {recommendation}")
-

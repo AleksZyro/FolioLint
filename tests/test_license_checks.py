@@ -19,4 +19,3 @@ def test_license_check_accepts_copying(tmp_path: Path) -> None:
 
     assert result.status == "ok"
     assert result.points == result.max_points
-

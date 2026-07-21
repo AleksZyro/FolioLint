@@ -90,4 +90,3 @@ def test_cli_no_score_hides_score_in_text(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Score:" not in result.stdout
     assert "Status:" not in result.stdout
-
