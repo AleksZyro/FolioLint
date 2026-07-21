@@ -1,5 +1,6 @@
 import json
 import zipfile
+from io import BytesIO
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -35,8 +36,14 @@ def test_prepare_remote_repository_extracts_zip_and_cleans_temp(
     archive = _make_repo_zip(tmp_path, "FolioLint-main")
     seen_repo_path: Path | None = None
 
-    def fake_download_zip(url: str, destination: Path) -> None:
+    def fake_download_zip(
+        url: str,
+        destination: Path,
+        *,
+        max_download_mb: int,
+    ) -> None:
         del url
+        del max_download_mb
         destination.write_bytes(archive.read_bytes())
 
     monkeypatch.setattr(remote, "download_zip", fake_download_zip)
@@ -54,7 +61,13 @@ def test_prepare_remote_repository_falls_back_to_master(tmp_path: Path, monkeypa
     archive = _make_repo_zip(tmp_path, "FolioLint-master")
     urls: list[str] = []
 
-    def fake_download_zip(url: str, destination: Path) -> None:
+    def fake_download_zip(
+        url: str,
+        destination: Path,
+        *,
+        max_download_mb: int,
+    ) -> None:
+        del max_download_mb
         urls.append(url)
         if url.endswith("/main.zip"):
             raise RemoteScanError("main failed")
@@ -75,7 +88,13 @@ def test_prepare_remote_repository_uses_explicit_branch(tmp_path: Path, monkeypa
     archive = _make_repo_zip(tmp_path, "FolioLint-develop")
     urls: list[str] = []
 
-    def fake_download_zip(url: str, destination: Path) -> None:
+    def fake_download_zip(
+        url: str,
+        destination: Path,
+        *,
+        max_download_mb: int,
+    ) -> None:
+        del max_download_mb
         urls.append(url)
         destination.write_bytes(archive.read_bytes())
 
@@ -90,11 +109,78 @@ def test_prepare_remote_repository_uses_explicit_branch(tmp_path: Path, monkeypa
     assert urls == ["https://github.com/AleksZyro/FolioLint/archive/refs/heads/develop.zip"]
 
 
+def test_prepare_remote_repository_keeps_download_limit_error(monkeypatch) -> None:
+    urls: list[str] = []
+
+    def fake_download_zip(
+        url: str,
+        destination: Path,
+        *,
+        max_download_mb: int,
+    ) -> None:
+        del destination
+        urls.append(url)
+        raise remote.DownloadTooLargeError(
+            f"FolioLint stopped the download because it is larger than {max_download_mb} MB."
+        )
+
+    monkeypatch.setattr(remote, "download_zip", fake_download_zip)
+
+    try:
+        with prepare_remote_repository(
+            "https://github.com/AleksZyro/FolioLint",
+            max_download_mb=3,
+        ):
+            raise AssertionError("Expected RemoteScanError")
+    except RemoteScanError as error:
+        assert "larger than 3 MB" in str(error)
+
+    assert urls == ["https://github.com/AleksZyro/FolioLint/archive/refs/heads/main.zip"]
+
+
+def test_download_zip_stops_when_content_length_is_too_large(tmp_path: Path, monkeypatch) -> None:
+    response = _FakeResponse(b"small", content_length=2 * 1024 * 1024)
+    monkeypatch.setattr(remote.urllib.request, "urlopen", lambda url, timeout: response)
+
+    try:
+        remote.download_zip(
+            "https://example.test/repo.zip",
+            tmp_path / "repo.zip",
+            max_download_mb=1,
+        )
+    except RemoteScanError as error:
+        assert "larger than 1 MB" in str(error)
+    else:
+        raise AssertionError("Expected RemoteScanError")
+
+
+def test_download_zip_stops_while_streaming_large_response(tmp_path: Path, monkeypatch) -> None:
+    response = _FakeResponse(b"x" * (2 * 1024 * 1024), content_length=None)
+    monkeypatch.setattr(remote.urllib.request, "urlopen", lambda url, timeout: response)
+
+    try:
+        remote.download_zip(
+            "https://example.test/repo.zip",
+            tmp_path / "repo.zip",
+            max_download_mb=1,
+        )
+    except RemoteScanError as error:
+        assert "protects your disk space" in str(error)
+    else:
+        raise AssertionError("Expected RemoteScanError")
+
+
 def test_scan_url_json_output(tmp_path: Path, monkeypatch) -> None:
     archive = _make_repo_zip(tmp_path, "FolioLint-main")
 
-    def fake_download_zip(url: str, destination: Path) -> None:
+    def fake_download_zip(
+        url: str,
+        destination: Path,
+        *,
+        max_download_mb: int,
+    ) -> None:
         del url
+        del max_download_mb
         destination.write_bytes(archive.read_bytes())
 
     monkeypatch.setattr(remote, "download_zip", fake_download_zip)
@@ -123,8 +209,14 @@ def test_scan_url_invalid_url_returns_clear_error() -> None:
 def test_scan_url_fail_under(tmp_path: Path, monkeypatch) -> None:
     archive = _make_repo_zip(tmp_path, "FolioLint-main")
 
-    def fake_download_zip(url: str, destination: Path) -> None:
+    def fake_download_zip(
+        url: str,
+        destination: Path,
+        *,
+        max_download_mb: int,
+    ) -> None:
         del url
+        del max_download_mb
         destination.write_bytes(archive.read_bytes())
 
     monkeypatch.setattr(remote, "download_zip", fake_download_zip)
@@ -137,6 +229,32 @@ def test_scan_url_fail_under(tmp_path: Path, monkeypatch) -> None:
 
     assert result.exit_code == 1
     assert "Score:" in result.stdout
+
+
+def test_scan_url_passes_max_download_limit(tmp_path: Path, monkeypatch) -> None:
+    archive = _make_repo_zip(tmp_path, "FolioLint-main")
+    limits: list[int] = []
+
+    def fake_download_zip(url: str, destination: Path, *, max_download_mb: int) -> None:
+        del url
+        limits.append(max_download_mb)
+        destination.write_bytes(archive.read_bytes())
+
+    monkeypatch.setattr(remote, "download_zip", fake_download_zip)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        [
+            "scan-url",
+            "https://github.com/AleksZyro/FolioLint",
+            "--max-download-mb",
+            "7",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert limits == [7]
 
 
 def _make_repo_zip(tmp_path: Path, root_name: str) -> Path:
@@ -167,3 +285,20 @@ Prototype.
 """,
         )
     return archive_path
+
+
+class _FakeResponse:
+    def __init__(self, body: bytes, *, content_length: int | None) -> None:
+        self._stream = BytesIO(body)
+        self.headers = {}
+        if content_length is not None:
+            self.headers["Content-Length"] = str(content_length)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self._stream.close()
+
+    def read(self, size: int = -1) -> bytes:
+        return self._stream.read(size)

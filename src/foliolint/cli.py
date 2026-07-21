@@ -7,7 +7,7 @@ from typing import Annotated
 
 import typer
 
-from foliolint.remote import RemoteScanError, prepare_remote_repository
+from foliolint.remote import DEFAULT_MAX_DOWNLOAD_MB, RemoteScanError, prepare_remote_repository
 from foliolint.report import render_markdown_report, render_text_report
 from foliolint.scanner import scan_project
 
@@ -54,6 +54,14 @@ RepoUrlArgument = Annotated[
 BranchOption = Annotated[
     str | None,
     typer.Option("--branch", help="Branch to download. Defaults to main, then master."),
+]
+MaxDownloadOption = Annotated[
+    int,
+    typer.Option(
+        "--max-download-mb",
+        min=1,
+        help="Maximum ZIP download size for scan-url.",
+    ),
 ]
 
 
@@ -107,6 +115,7 @@ def scan_url(
     output_format: FormatOption = OutputFormat.text,
     strict: StrictOption = False,
     fail_under: FailUnderOption = None,
+    max_download_mb: MaxDownloadOption = DEFAULT_MAX_DOWNLOAD_MB,
 ) -> None:
     """Download a public GitHub repository ZIP temporarily and scan it."""
     if no_score and fail_under is not None:
@@ -114,7 +123,11 @@ def scan_url(
         raise typer.Exit(2)
 
     try:
-        with prepare_remote_repository(url, branch=branch) as remote:
+        with prepare_remote_repository(
+            url,
+            branch=branch,
+            max_download_mb=max_download_mb,
+        ) as remote:
             report = scan_project(remote.path, include_score=not no_score, strict=strict)
     except RemoteScanError as error:
         typer.echo(f"Error: {error}", err=True)

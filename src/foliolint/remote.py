@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 import tempfile
 import urllib.error
 import urllib.request
@@ -11,9 +10,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
+DEFAULT_MAX_DOWNLOAD_MB = 50
+BYTES_PER_MB = 1024 * 1024
+
 
 class RemoteScanError(RuntimeError):
     """Raised when a remote repository cannot be prepared for scanning."""
+
+
+class DownloadTooLargeError(RemoteScanError):
+    """Raised when a repository ZIP exceeds the configured download limit."""
 
 
 @dataclass(frozen=True)
@@ -56,7 +62,12 @@ def parse_github_repo_url(url: str) -> GitHubRepo:
 
 
 @contextmanager
-def prepare_remote_repository(url: str, *, branch: str | None = None) -> Iterator[RemoteRepository]:
+def prepare_remote_repository(
+    url: str,
+    *,
+    branch: str | None = None,
+    max_download_mb: int = DEFAULT_MAX_DOWNLOAD_MB,
+) -> Iterator[RemoteRepository]:
     repo = parse_github_repo_url(url)
     branches = [branch] if branch else ["main", "master"]
     with tempfile.TemporaryDirectory(prefix="foliolint-remote-") as temp_dir:
@@ -65,9 +76,15 @@ def prepare_remote_repository(url: str, *, branch: str | None = None) -> Iterato
         for candidate_branch in branches:
             zip_path = temp_path / f"{repo.owner}-{repo.name}-{candidate_branch}.zip"
             try:
-                download_zip(repo.zip_url(candidate_branch), zip_path)
+                download_zip(
+                    repo.zip_url(candidate_branch),
+                    zip_path,
+                    max_download_mb=max_download_mb,
+                )
                 extract_zip(zip_path, temp_path)
                 repo_path = find_extracted_repo(temp_path, zip_path)
+            except DownloadTooLargeError:
+                raise
             except RemoteScanError as error:
                 last_error = error
                 continue
@@ -89,11 +106,28 @@ def prepare_remote_repository(url: str, *, branch: str | None = None) -> Iterato
     ) from last_error
 
 
-def download_zip(url: str, destination: Path) -> None:
+def download_zip(
+    url: str,
+    destination: Path,
+    *,
+    max_download_mb: int = DEFAULT_MAX_DOWNLOAD_MB,
+) -> None:
+    max_bytes = max_download_mb * BYTES_PER_MB
     try:
         with urllib.request.urlopen(url, timeout=30) as response:
+            content_length = response.headers.get("Content-Length")
+            if _content_length_exceeds_limit(content_length, max_bytes):
+                raise DownloadTooLargeError(_download_limit_message(max_download_mb))
             with destination.open("wb") as file:
-                shutil.copyfileobj(response, file)
+                copied = 0
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    copied += len(chunk)
+                    if copied > max_bytes:
+                        raise DownloadTooLargeError(_download_limit_message(max_download_mb))
+                    file.write(chunk)
     except urllib.error.HTTPError as error:
         if error.code == 404:
             raise RemoteScanError(
@@ -129,3 +163,19 @@ def find_extracted_repo(temp_path: Path, zip_path: Path) -> Path:
     if directories:
         return sorted(directories, key=lambda path: path.name)[0]
     raise RemoteScanError("FolioLint could not find the downloaded repository folder.")
+
+
+def _download_limit_message(max_download_mb: int) -> str:
+    return (
+        f"FolioLint stopped the download because it is larger than {max_download_mb} MB. "
+        "This protects your disk space. Use --max-download-mb to allow a larger download."
+    )
+
+
+def _content_length_exceeds_limit(content_length: str | None, max_bytes: int) -> bool:
+    if not content_length:
+        return False
+    try:
+        return int(content_length) > max_bytes
+    except ValueError:
+        return False
