@@ -28,20 +28,32 @@ It is not a code quality tool, not a security scanner, not an AI tool and not a 
 
 ## Local Installation
 
-Use Python 3.11 or newer.
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-```
+Use Python 3.11 or newer. Run the install command from the FolioLint project folder, where `pyproject.toml` is located.
 
 On Windows PowerShell:
 
 ```powershell
+git clone https://github.com/AleksZyro/FolioLint.git
+cd FolioLint
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
+```
+
+If PowerShell blocks activation scripts, run this once in the same terminal and then activate again:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+On macOS or Linux:
+
+```bash
+git clone https://github.com/AleksZyro/FolioLint.git
+cd FolioLint
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
 ```
 
 ## Usage
