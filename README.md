@@ -4,6 +4,8 @@ FolioLint is a local Python CLI that checks whether a repository is prepared for
 
 It is not a code quality tool, not a security scanner, not an AI tool and not a recruiter oracle. The goal is a repeatable local checklist with transparent scoring.
 
+![FolioLint terminal preview](docs/assets/foliolint-scan.svg)
+
 ## What It Checks
 
 - README.md presence and common showcase sections
@@ -50,6 +52,12 @@ foliolint scan ../PathLab --explain
 foliolint scan ../BESP2074 --no-score
 foliolint scan . --format json
 foliolint scan . --strict
+```
+
+Local demo command:
+
+```bash
+foliolint scan . --no-score
 ```
 
 ## Example Output
@@ -110,6 +118,19 @@ The checks are deterministic heuristics. They cannot understand full project con
 
 More detail is in [docs/limitations.md](docs/limitations.md).
 
+For examples of warnings that can be safe to ignore, see [docs/warnings.md](docs/warnings.md).
+
+## Real Repository Smoke Tests
+
+FolioLint was tested against real local portfolio repositories during MVP development:
+
+```bash
+foliolint scan ../SortLab --explain
+foliolint scan ../BESP-Balkan-Economy-Simulation-Player- --explain
+```
+
+These runs helped improve noisy warnings around generated folders, dependency folders and obvious secret-risk hints.
+
 ## Roadmap
 
 - Improve wording based on public feedback
@@ -138,4 +159,3 @@ A: No. It only detects obvious risky patterns and should not replace proper secr
 
 **Q: Will this make people optimise for fake portfolio points?**  
 A: The tool intentionally explains limitations and supports `--no-score`. The goal is clarity and safer public sharing, not gaming.
-
