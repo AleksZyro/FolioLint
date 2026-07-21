@@ -8,3 +8,4 @@ FolioLint is intentionally small, local and rule-based.
 - Not every project needs screenshots or a demo. Libraries, learning notes or backend tools can still be useful without visual media.
 - Some projects should stay private on purpose. A higher score does not mean a repository should be published.
 - The tool cannot fully understand context, project goals, legal constraints or personal boundaries.
+- Warnings can be false positives. See [warnings.md](warnings.md) for examples of when a warning may be safe to ignore.

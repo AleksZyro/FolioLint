@@ -9,6 +9,7 @@ Helpful feedback includes:
 - A missing check that would help people prepare a project for public viewing.
 - A scoring rule that feels too strong, too weak or unclear.
 - Output wording that sounds too judgemental or too vague.
+- A real repository shape where a warning should be documented as safe to ignore.
 
 When suggesting a new check, include:
 
@@ -18,4 +19,3 @@ When suggesting a new check, include:
 - Examples where the check should not trigger.
 
 Please do not report private secrets, API keys or sensitive repository content. Describe the pattern instead.
-
