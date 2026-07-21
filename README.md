@@ -77,9 +77,12 @@ foliolint scan-url https://github.com/AleksZyro/FolioLint --explain
 foliolint scan-url https://github.com/OWNER/REPO --format json
 foliolint scan-url https://github.com/OWNER/REPO --format markdown
 foliolint scan-url https://github.com/OWNER/REPO --branch main
+foliolint scan-url https://github.com/OWNER/REPO --max-download-mb 100
 ```
 
-`scan PATH` checks a folder that already exists on your computer and does not need internet access. `scan-url URL` downloads a public GitHub repository as a temporary ZIP file, checks it locally, and deletes the downloaded files afterwards. It does not use a GitHub API key. Private repositories are not supported by `scan-url`, and large repositories can take longer to download.
+`scan PATH` checks a folder that already exists on your computer and does not need internet access. `scan-url URL` downloads a public GitHub repository as a temporary ZIP file, checks it locally, and deletes the downloaded files afterwards. It does not use a GitHub API key. Private repositories are not supported by `scan-url`.
+
+To protect disk space, `scan-url` stops downloads above 50 MB by default. Use `--max-download-mb` only when you intentionally want to scan a larger repository.
 
 Local demo command:
 

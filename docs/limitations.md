@@ -12,4 +12,5 @@ FolioLint is intentionally small, local and rule-based.
 - `scan-url` needs internet access to download the repository ZIP file.
 - `scan-url` supports public GitHub repositories only. It does not use a GitHub API key and does not support private repositories.
 - `scan-url` tries the `main` branch first, then `master`. Use `--branch` for a different branch.
+- `scan-url` stops ZIP downloads above 50 MB by default to protect disk space. Use `--max-download-mb` for larger repositories.
 - ZIP downloads are not full Git clones, so Git-aware hygiene checks are less precise for `scan-url` than for local Git repositories.
