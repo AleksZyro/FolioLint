@@ -44,7 +44,18 @@ def test_secret_check_ignores_documented_pattern_names(tmp_path: Path) -> None:
     assert result.details["matches"] == []
 
 
-def test_tests_check_detects_github_actions(tmp_path: Path) -> None:
+def test_secret_check_skips_generated_dependency_folders(tmp_path: Path) -> None:
+    package = tmp_path / "node_modules" / "example"
+    package.mkdir(parents=True)
+    (package / "index.js").write_text("PASS" + "WORD = 'example'\n", encoding="utf-8")
+
+    result = check_secrets(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.details["matches"] == []
+
+
+def test_tests_check_ignores_empty_github_actions(tmp_path: Path) -> None:
     tests = tmp_path / "tests"
     tests.mkdir()
     (tests / "test_app.py").write_text("def test_app():\n    assert True\n", encoding="utf-8")
@@ -55,5 +66,35 @@ def test_tests_check_detects_github_actions(tmp_path: Path) -> None:
     result = check_tests(tmp_path, ShowcaseConfig())
 
     assert result.status == "ok"
+    assert result.details["github_actions"] is False
+    assert result.details["github_actions_files"] == [".github/workflows/tests.yml"]
+    assert result.points == 10
+
+
+def test_tests_check_detects_meaningful_github_actions(tmp_path: Path) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_app.py").write_text("def test_app():\n    assert True\n", encoding="utf-8")
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "ci.yml").write_text(
+        """
+name: CI
+on: [push]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+      - run: python -m pytest
+      - run: ruff check .
+""",
+        encoding="utf-8",
+    )
+
+    result = check_tests(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
     assert result.details["github_actions"] is True
+    assert result.details["github_actions_tools"] == ["pytest", "python", "ruff"]
     assert result.points == 13

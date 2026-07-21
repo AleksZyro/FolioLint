@@ -18,6 +18,7 @@ SECRETS_CHECK_ID = "secrets"
 METADATA_CHECK_ID = "metadata"
 
 GENERATED_DIRS = {"dist", "build", "_site", "node_modules", "__pycache__", ".pytest_cache"}
+SECRET_SCAN_SKIP_DIRS = GENERATED_DIRS | {".ruff_cache", ".venv", "venv", "site-packages"}
 MEDIA_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".mp4", ".webm"}
 MEDIA_DIRS = {"docs/assets", "assets", "public"}
 TEXT_EXTENSIONS = {
@@ -51,6 +52,12 @@ SECRET_ASSIGNMENT_RE = re.compile(
     r"\b(API" + r"_KEY|SECRET|TOKEN|PASSWORD|PRIVATE" + r"_KEY)\b\s*[:=]",
     re.IGNORECASE,
 )
+WORKFLOW_HINTS = {
+    "pytest": ["pytest"],
+    "ruff": ["ruff check", "ruff format", "ruff"],
+    "python": ["python-version", "setup-python", "python -m", "python"],
+    "npm_test": ["npm test", "npm run test"],
+}
 
 
 def run_checks(path: Path, config: ShowcaseConfig) -> list[CheckResult]:
@@ -225,7 +232,8 @@ def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
         if is_test_file:
             test_files.append(file)
     package_test = _package_json_has_test_script(path / "package.json")
-    github_actions = _has_github_actions(path)
+    github_actions_details = _github_actions_details(path)
+    github_actions = github_actions_details["has_meaningful_checks"]
     points = 0
     if has_tests_dir:
         points += 5
@@ -240,6 +248,8 @@ def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
         "test_files": [file.relative_to(path).as_posix() for file in test_files[:10]],
         "package_json_test_script": package_test,
         "github_actions": github_actions,
+        "github_actions_files": github_actions_details["files"],
+        "github_actions_tools": github_actions_details["tools"],
     }
     status = "ok" if points >= 8 else "warning"
     message = "Test setup detected." if points >= 8 else "No clear test setup detected."
@@ -248,7 +258,7 @@ def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
         recommendations.append("Add test_*.py or *_test.py files under tests/.")
     if not github_actions:
         recommendations.append(
-            "Consider documenting or adding a simple GitHub Actions test workflow."
+            "Add a GitHub Actions workflow that runs pytest, ruff or another test command."
         )
     return CheckResult(
         category="Tests",
@@ -326,6 +336,8 @@ def check_demo(path: Path, config: ShowcaseConfig) -> CheckResult:
             "uvicorn",
             "flask run",
             "typer",
+            "foliolint scan",
+            "python -m",
         ],
     )
     if hosted_demo or local_demo:
@@ -347,8 +359,7 @@ def check_demo(path: Path, config: ShowcaseConfig) -> CheckResult:
         max_points=10,
         details={"hosted_demo": False, "local_demo": False},
         explanation=(
-            "Demo gets 0/10 because README.md has no hosted demo link "
-            "or local start instruction."
+            "Demo gets 0/10 because README.md has no hosted demo link or local start instruction."
         ),
         recommendations=[
             "Document a hosted demo link or a local start command when the project supports it."
@@ -433,6 +444,8 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
 def check_secrets(path: Path, config: ShowcaseConfig) -> CheckResult:
     matches: list[dict[str, str]] = []
     for file in _iter_files(path, config):
+        if _is_in_skipped_secret_dir(file, path):
+            continue
         if not _should_scan_text(file):
             continue
         text = _read_text(file)
@@ -475,13 +488,15 @@ def check_secrets(path: Path, config: ShowcaseConfig) -> CheckResult:
 def check_metadata(path: Path, config: ShowcaseConfig) -> CheckResult:
     del config
     vite_files = list(path.glob("vite.config.*"))
-    workflows = _has_github_actions(path)
+    workflow_details = _github_actions_details(path)
+    workflows = bool(workflow_details["files"])
     found = {
         "pyproject.toml": (path / "pyproject.toml").exists(),
         "requirements.txt": (path / "requirements.txt").exists(),
         "package.json": (path / "package.json").exists(),
         "vite.config": bool(vite_files),
         ".github/workflows": workflows,
+        "workflow_files": workflow_details["files"],
     }
     points = 0
     if found["pyproject.toml"]:
@@ -587,11 +602,26 @@ def _package_json_has_test_script(path: Path) -> bool:
     return isinstance(scripts, dict) and isinstance(scripts.get("test"), str)
 
 
-def _has_github_actions(path: Path) -> bool:
+def _github_actions_details(path: Path) -> dict[str, object]:
     workflows = path / ".github" / "workflows"
     if not workflows.is_dir():
-        return False
-    return any(file.suffix in {".yml", ".yaml"} for file in workflows.iterdir() if file.is_file())
+        return {"files": [], "tools": [], "has_meaningful_checks": False}
+
+    workflow_files = [
+        file for file in workflows.iterdir() if file.is_file() and file.suffix in {".yml", ".yaml"}
+    ]
+    tools: set[str] = set()
+    for file in workflow_files:
+        text = _read_text(file).lower()
+        for tool, hints in WORKFLOW_HINTS.items():
+            if any(hint in text for hint in hints):
+                tools.add(tool)
+
+    return {
+        "files": [file.relative_to(path).as_posix() for file in workflow_files],
+        "tools": sorted(tools),
+        "has_meaningful_checks": bool(tools),
+    }
 
 
 def _should_scan_text(file: Path) -> bool:
@@ -601,6 +631,14 @@ def _should_scan_text(file: Path) -> bool:
         return file.stat().st_size <= 1024 * 1024
     except OSError:
         return False
+
+
+def _is_in_skipped_secret_dir(file: Path, root: Path) -> bool:
+    try:
+        relative_parts = file.relative_to(root).parts
+    except ValueError:
+        return False
+    return any(part in SECRET_SCAN_SKIP_DIRS for part in relative_parts[:-1])
 
 
 def _find_secret_hint(text: str) -> str | None:

@@ -34,3 +34,14 @@ def test_demo_check_detects_github_pages_and_localhost(tmp_path: Path) -> None:
     assert result.details["hosted_demo"] is True
     assert result.details["local_demo"] is True
 
+
+def test_demo_check_detects_cli_scan_command(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "Local demo: run foliolint scan . --no-score\n",
+        encoding="utf-8",
+    )
+
+    result = check_demo(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.details["local_demo"] is True
