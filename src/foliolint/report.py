@@ -48,3 +48,38 @@ def render_text_report(
         output.print("[bold]Recommended next steps:[/bold]")
         for index, recommendation in enumerate(report.recommendations, start=1):
             output.print(f"{index}. {recommendation}")
+
+
+def render_markdown_report(report: ScanReport, *, include_score: bool = True) -> str:
+    lines = ["# FolioLint Report", ""]
+    lines.append(f"Path: `{report.path}`")
+    if include_score:
+        lines.append(f"Score: **{report.score}/100**")
+        lines.append(f"Status: **{report.status}**")
+    lines.extend(
+        [
+            "",
+            "| Category | Status | Points | Notes |",
+            "| --- | --- | ---: | --- |",
+        ]
+    )
+    for check in report.checks:
+        points = f"{check.points}/{check.max_points}" if check.max_points else "-"
+        lines.append(
+            "| "
+            f"{_escape_markdown_table(check.category)} | "
+            f"{check.status} | "
+            f"{points} | "
+            f"{_escape_markdown_table(check.message)} |"
+        )
+
+    if report.recommendations:
+        lines.extend(["", "## Recommended Next Steps", ""])
+        for index, recommendation in enumerate(report.recommendations, start=1):
+            lines.append(f"{index}. {recommendation}")
+
+    return "\n".join(lines) + "\n"
+
+
+def _escape_markdown_table(value: str) -> str:
+    return value.replace("|", "\\|").replace("\n", " ")

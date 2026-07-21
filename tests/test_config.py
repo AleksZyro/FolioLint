@@ -90,3 +90,32 @@ def test_cli_no_score_hides_score_in_text(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Score:" not in result.stdout
     assert "Status:" not in result.stdout
+
+
+def test_cli_markdown_output(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["scan", str(tmp_path), "--format", "markdown"])
+
+    assert result.exit_code == 0
+    assert "# FolioLint Report" in result.stdout
+    assert "| Category | Status | Points | Notes |" in result.stdout
+    assert "README" in result.stdout
+
+
+def test_cli_fail_under_exits_with_error(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["scan", str(tmp_path), "--fail-under", "75"])
+
+    assert result.exit_code == 1
+    assert "Score:" in result.stdout
+
+
+def test_cli_fail_under_rejects_no_score(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["scan", str(tmp_path), "--no-score", "--fail-under", "75"])
+
+    assert result.exit_code == 2
+    assert "--fail-under cannot be used together with --no-score" in result.stderr

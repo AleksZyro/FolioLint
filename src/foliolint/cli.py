@@ -7,13 +7,14 @@ from typing import Annotated
 
 import typer
 
-from foliolint.report import render_text_report
+from foliolint.report import render_markdown_report, render_text_report
 from foliolint.scanner import scan_project
 
 
 class OutputFormat(StrEnum):
     text = "text"
     json = "json"
+    markdown = "markdown"
 
 
 PathArgument = Annotated[
@@ -36,6 +37,15 @@ StrictOption = Annotated[
     bool,
     typer.Option("--strict", help="Use stricter readiness scoring for public presentation."),
 ]
+FailUnderOption = Annotated[
+    int | None,
+    typer.Option(
+        "--fail-under",
+        min=0,
+        max=100,
+        help="Exit with code 1 when the score is below this value.",
+    ),
+]
 
 
 app = typer.Typer(no_args_is_help=True, help="Check local repository showcase readiness.")
@@ -53,8 +63,13 @@ def scan(
     explain: ExplainOption = False,
     output_format: FormatOption = OutputFormat.text,
     strict: StrictOption = False,
+    fail_under: FailUnderOption = None,
 ) -> None:
     """Scan a repository path."""
+    if no_score and fail_under is not None:
+        typer.echo("Error: --fail-under cannot be used together with --no-score.", err=True)
+        raise typer.Exit(2)
+
     report = scan_project(path, include_score=not no_score, strict=strict)
     if output_format == OutputFormat.json:
         typer.echo(
@@ -64,8 +79,19 @@ def scan(
                 sort_keys=True,
             )
         )
+        _exit_if_under_threshold(report.score, fail_under)
+        return
+    if output_format == OutputFormat.markdown:
+        typer.echo(render_markdown_report(report, include_score=not no_score))
+        _exit_if_under_threshold(report.score, fail_under)
         return
     render_text_report(report, include_score=not no_score, explain=explain)
+    _exit_if_under_threshold(report.score, fail_under)
+
+
+def _exit_if_under_threshold(score: int | None, fail_under: int | None) -> None:
+    if fail_under is not None and score is not None and score < fail_under:
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":
