@@ -4,7 +4,7 @@ FolioLint warnings are review prompts, not automatic failures. A warning means "
 
 ## README Warnings
 
-README checks use simple keyword hints. A warning can be reasonable to ignore when:
+README checks use simple Markdown, command and keyword hints. A warning can be reasonable to ignore when:
 
 - The repository is a small code sample with context explained somewhere else.
 - The project is an internal exercise and does not need a full public README.
@@ -41,7 +41,9 @@ Generated folders, cache folders and logs often appear during local development.
 - The files are intentional fixtures for tests.
 - Large demo media is intentionally stored in the repository and explained.
 
-FolioLint does not deduct points for common hygiene paths that match `.gitignore`; those paths are reported as local ignored details instead.
+In Git repositories, FolioLint uses `git ls-files` to focus hygiene warnings on tracked files. Local untracked cache folders are reported as ignored local details instead of score deductions.
+
+Outside Git repositories, FolioLint falls back to `.gitignore` heuristics.
 
 Before public sharing, check what is actually tracked by git.
 

@@ -65,7 +65,9 @@ foliolint scan .
 foliolint scan ../PathLab --explain
 foliolint scan ../BESP2074 --no-score
 foliolint scan . --format json
+foliolint scan . --format markdown
 foliolint scan . --strict
+foliolint scan . --fail-under 75
 ```
 
 Local demo command:
@@ -113,6 +115,12 @@ JSON output is available for automation:
 }
 ```
 
+Markdown output is available for comments, issue descriptions or CI summaries:
+
+```bash
+foliolint scan . --format markdown
+```
+
 ## Score
 
 The score is a public showcase readiness score from 0 to 100. It is not an objective project quality score.
@@ -122,7 +130,9 @@ The score is a public showcase readiness score from 0 to 100. It is not an objec
 - 75-89: Almost showcase-ready
 - 90-100: Showcase-ready
 
-Run with `--explain` to see why category points were given or deducted. Run with `--no-score` to hide the score completely.
+Run with `--explain` to see why category points were given or deducted. README explanations include matching headings, code commands or keyword heuristics.
+
+Run with `--no-score` to hide the score completely. Run with `--fail-under 75` when CI should fail below a chosen readiness threshold.
 
 Full scoring rules are documented in [docs/scoring.md](docs/scoring.md).
 
