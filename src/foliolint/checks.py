@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -58,6 +59,19 @@ WORKFLOW_HINTS = {
     "python": ["python-version", "setup-python", "python -m", "python"],
     "npm_test": ["npm test", "npm run test"],
 }
+README_HEADINGS = {
+    "purpose": ["about", "overview", "description", "purpose", "what is", "ziel", "zweck"],
+    "setup": ["installation", "install", "setup", "requirements"],
+    "usage": ["usage", "quick start", "getting started", "run", "start", "nutzung"],
+    "tests": ["tests", "testing", "test"],
+    "limitations": ["status", "limitations", "limits", "roadmap", "grenzen"],
+    "screenshot_or_demo": ["demo", "screenshot", "screenshots", "preview"],
+}
+README_COMMANDS = {
+    "setup": ["pip install", "npm install", "python -m venv"],
+    "usage": ["python -m", "npm run dev", "npm start", "foliolint scan"],
+    "tests": ["pytest", "python -m pytest", "npm test", "npm run test"],
+}
 
 
 def run_checks(path: Path, config: ShowcaseConfig) -> list[CheckResult]:
@@ -107,6 +121,7 @@ def check_readme(path: Path, config: ShowcaseConfig) -> CheckResult:
 
     text = _read_text(readme)
     lowered = text.lower()
+    evidence = _readme_evidence(text)
     purpose_keywords = [
         "purpose",
         "what is",
@@ -157,13 +172,20 @@ def check_readme(path: Path, config: ShowcaseConfig) -> CheckResult:
     ]
     found = {
         "exists": True,
-        "purpose": _has_any(lowered, purpose_keywords) or len(text.strip()) >= 120,
-        "setup": _has_any(lowered, setup_keywords),
-        "usage": _has_any(lowered, usage_keywords),
-        "tests": _has_any(lowered, ["test", "pytest", "unittest", "npm test", "coverage"]),
-        "limitations": _has_any(lowered, limitation_keywords),
-        "screenshot_or_demo": _has_any(lowered, media_keywords),
+        "purpose": bool(evidence["purpose"])
+        or _has_any(lowered, purpose_keywords)
+        or len(text.strip()) >= 120,
+        "setup": bool(evidence["setup"]) or _has_any(lowered, setup_keywords),
+        "usage": bool(evidence["usage"]) or _has_any(lowered, usage_keywords),
+        "tests": bool(evidence["tests"])
+        or _has_any(lowered, ["test", "pytest", "unittest", "npm test", "coverage"]),
+        "limitations": bool(evidence["limitations"]) or _has_any(lowered, limitation_keywords),
+        "screenshot_or_demo": bool(evidence["screenshot_or_demo"])
+        or _has_any(lowered, media_keywords),
     }
+    for key, value in found.items():
+        if value and key != "exists" and not evidence[key]:
+            evidence[key].append("keyword or content heuristic")
     point_rules = {
         "exists": 5,
         "purpose": 4,
@@ -186,11 +208,8 @@ def check_readme(path: Path, config: ShowcaseConfig) -> CheckResult:
         message=message,
         points=points,
         max_points=25,
-        details=found,
-        explanation=(
-            f"README gets {points}/25 from keyword-based sections: "
-            f"{', '.join(k for k, v in found.items() if v)}."
-        ),
+        details={**found, "matches": evidence},
+        explanation=_readme_explanation(points, evidence),
         recommendations=recommendations,
     )
 
@@ -375,13 +394,22 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
     large_files: list[str] = []
     threshold_bytes = config.thresholds.large_file_mb * 1024 * 1024
     gitignore_patterns = _read_gitignore_patterns(path)
+    tracked_paths = _git_tracked_paths(path)
 
     for item in _iter_paths(path, config):
         rel = item.relative_to(path).as_posix()
-        if _matches_gitignore(rel, item.is_dir(), gitignore_patterns):
-            if _is_common_hygiene_path(item):
+        if tracked_paths is not None:
+            is_untracked_hygiene_path = _is_common_hygiene_path(item) and not _is_git_tracked(
+                rel, item.is_dir(), tracked_paths
+            )
+            if is_untracked_hygiene_path:
                 ignored_local_paths.append(rel)
-            continue
+                continue
+        else:
+            if _matches_gitignore(rel, item.is_dir(), gitignore_patterns):
+                if _is_common_hygiene_path(item):
+                    ignored_local_paths.append(rel)
+                continue
         if item.is_dir() and item.name in GENERATED_DIRS:
             generated_dirs.add(rel)
             continue
@@ -438,6 +466,7 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
             "env_files": env_files,
             "log_files": log_files,
             "ignored_local_paths": ignored_local_paths[:20],
+            "uses_git_tracking": tracked_paths is not None,
             "large_file_mb": config.thresholds.large_file_mb,
         },
         explanation=(
@@ -611,6 +640,29 @@ def _is_common_hygiene_path(item: Path) -> bool:
     )
 
 
+def _git_tracked_paths(root: Path) -> set[str] | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "-z"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+    paths = {path for path in result.stdout.split("\0") if path}
+    return paths
+
+
+def _is_git_tracked(rel_path: str, is_dir: bool, tracked_paths: set[str]) -> bool:
+    if rel_path in tracked_paths:
+        return True
+    if is_dir:
+        return any(path.startswith(f"{rel_path}/") for path in tracked_paths)
+    return False
+
+
 def _read_text(path: Path) -> str:
     if not path.exists() or not path.is_file():
         return ""
@@ -624,6 +676,67 @@ def _read_text(path: Path) -> str:
 
 def _has_any(text: str, needles: list[str]) -> bool:
     return any(needle in text for needle in needles)
+
+
+def _readme_evidence(text: str) -> dict[str, list[str]]:
+    evidence = {key: [] for key in README_HEADINGS}
+    headings = _markdown_headings(text)
+    code_blocks = _markdown_code_blocks(text)
+
+    for category, aliases in README_HEADINGS.items():
+        for heading in headings:
+            if any(alias in heading for alias in aliases):
+                evidence[category].append(f"heading '{heading}'")
+                break
+
+    for category, commands in README_COMMANDS.items():
+        for block in code_blocks:
+            matched = next((command for command in commands if command in block), None)
+            if matched:
+                evidence[category].append(f"code command '{matched}'")
+                break
+
+    lowered = text.lower()
+    if not evidence["screenshot_or_demo"] and (
+        "![" in lowered or any(extension in lowered for extension in MEDIA_EXTENSIONS)
+    ):
+        evidence["screenshot_or_demo"].append("README media reference")
+
+    return evidence
+
+
+def _markdown_headings(text: str) -> list[str]:
+    headings: list[str] = []
+    for line in text.splitlines():
+        match = re.match(r"^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$", line)
+        if match:
+            headings.append(match.group(1).strip().lower())
+    return headings
+
+
+def _markdown_code_blocks(text: str) -> list[str]:
+    blocks: list[str] = []
+    current: list[str] = []
+    in_block = False
+    for line in text.splitlines():
+        if line.strip().startswith("```"):
+            if in_block:
+                blocks.append("\n".join(current).lower())
+                current = []
+            in_block = not in_block
+            continue
+        if in_block:
+            current.append(line)
+    return blocks
+
+
+def _readme_explanation(points: int, evidence: dict[str, list[str]]) -> str:
+    matched = [
+        f"{category}: {', '.join(matches)}" for category, matches in evidence.items() if matches
+    ]
+    if not matched:
+        return f"README gets {points}/25 without key section matches."
+    return f"README gets {points}/25. Matches: {'; '.join(matched)}."
 
 
 def _readme_message(found: dict[str, bool]) -> str:

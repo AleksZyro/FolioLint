@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 from foliolint.checks import check_hygiene, check_secrets, check_tests
@@ -36,6 +37,31 @@ def test_hygiene_check_ignores_gitignored_cache_dirs(tmp_path: Path) -> None:
     assert result.details["generated_dirs"] == []
     assert ".pytest_cache" in result.details["ignored_local_paths"]
     assert "src/__pycache__" in result.details["ignored_local_paths"]
+
+
+def test_hygiene_check_ignores_untracked_cache_in_git_repo(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    (tmp_path / ".pytest_cache").mkdir()
+
+    result = check_hygiene(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.details["uses_git_tracking"] is True
+    assert ".pytest_cache" in result.details["ignored_local_paths"]
+
+
+def test_hygiene_check_warns_for_tracked_generated_dir(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    (dist / "bundle.js").write_text("console.log('demo')\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "dist/bundle.js"], check=True)
+
+    result = check_hygiene(tmp_path, ShowcaseConfig())
+
+    assert result.status == "warning"
+    assert result.details["uses_git_tracking"] is True
+    assert result.details["generated_dirs"] == ["dist"]
 
 
 def test_secret_check_detects_obvious_risk_hint(tmp_path: Path) -> None:
@@ -113,3 +139,7 @@ jobs:
     assert result.details["github_actions"] is True
     assert result.details["github_actions_tools"] == ["pytest", "python", "ruff"]
     assert result.points == 13
+
+
+def _init_git_repo(path: Path) -> None:
+    subprocess.run(["git", "-C", str(path), "init"], check=True, capture_output=True)

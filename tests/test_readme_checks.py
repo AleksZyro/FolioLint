@@ -47,6 +47,47 @@ See docs/assets/screenshot.png.
     assert result.points == 25
 
 
+def test_readme_check_detects_headings_and_code_blocks(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        """
+# Example
+
+## Overview
+Small local tool.
+
+## Installation
+```bash
+pip install -e .
+```
+
+## Quick Start
+```bash
+python -m example
+```
+
+## Tests
+```bash
+pytest
+```
+
+## Limitations
+Prototype.
+
+## Demo
+![preview](docs/assets/screenshot.png)
+""",
+        encoding="utf-8",
+    )
+
+    result = check_readme(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.points == 25
+    assert "heading 'installation'" in result.details["matches"]["setup"]
+    assert "code command 'pytest'" in result.details["matches"]["tests"]
+    assert "Matches:" in result.explanation
+
+
 def test_cli_explain_shows_points(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# Example\n\nUsage: run pytest.\n", encoding="utf-8")
     runner = CliRunner()
