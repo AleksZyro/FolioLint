@@ -48,6 +48,16 @@ If PowerShell blocks activation scripts, run this once in the same terminal and 
 Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 ```
 
+On Windows Command Prompt (`cmd.exe`):
+
+```bat
+git clone https://github.com/AleksZyro/FolioLint.git
+cd FolioLint
+py -3.11 -m venv .venv
+.venv\Scripts\activate.bat
+py -m pip install -e ".[dev]"
+```
+
 On macOS or Linux:
 
 ```bash
@@ -60,19 +70,31 @@ python -m pip install -e ".[dev]"
 
 ## Usage
 
-```bash
+The `foliolint` commands are the same on Windows, macOS and Linux:
+
+```text
 foliolint scan .
-foliolint scan ../PathLab --explain
-foliolint scan ../BESP2074 --no-score
 foliolint scan . --format json
 foliolint scan . --format markdown
 foliolint scan . --strict
 foliolint scan . --fail-under 75
 ```
 
-Remote scans for public GitHub repositories:
+Local path examples:
+
+```powershell
+foliolint scan ..\SortLab --explain
+foliolint scan ..\BESP2074 --no-score
+```
 
 ```bash
+foliolint scan ../SortLab --explain
+foliolint scan ../BESP2074 --no-score
+```
+
+Remote scans for public GitHub repositories:
+
+```text
 foliolint scan-url https://github.com/AleksZyro/FolioLint --explain
 foliolint scan-url https://github.com/OWNER/REPO --format json
 foliolint scan-url https://github.com/OWNER/REPO --format markdown
@@ -86,7 +108,7 @@ To protect disk space, `scan-url` stops downloads above 50 MB by default. Use `-
 
 Local demo command:
 
-```bash
+```text
 foliolint scan . --no-score
 ```
 
