@@ -9,7 +9,6 @@
     .muted { fill: #8b949e; }
     .accent { fill: #58a6ff; font-weight: 700; }
     .ok { fill: #3fb950; font-weight: 700; }
-    .warning { fill: #d29922; font-weight: 700; }
     .rule { stroke: #30363d; stroke-width: 1; }
   </style>
 
