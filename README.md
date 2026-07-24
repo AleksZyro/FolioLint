@@ -6,7 +6,7 @@ FolioLint helps you find boring but important repo presentation issues before sh
 
 It is not a code quality tool, not a security scanner, not an AI tool and not a recruiter oracle. The goal is a repeatable local checklist with transparent scoring.
 
-![FolioLint terminal preview](docs/assets/foliolint-preview.svg)
+![FolioLint scan-url example](docs/assets/foliolint-scan-url-gitfut.png)
 
 ## What It Checks
 
