@@ -32,6 +32,8 @@ It is not a code quality tool, not a security scanner, not an AI tool and not a 
 
 Use Python 3.11 or newer. Run the install command from the FolioLint project folder, where `pyproject.toml` is located.
 
+If you downloaded or cloned FolioLint into another folder, change the `cd` command to that folder. For example, if FolioLint is in your Downloads folder on Windows, use `cd "$env:USERPROFILE\Downloads\FolioLint"` in PowerShell.
+
 On Windows PowerShell:
 
 ```powershell
@@ -80,16 +82,20 @@ foliolint scan . --strict
 foliolint scan . --fail-under 75
 ```
 
+The dot in `foliolint scan .` means "scan the folder I am currently in". To scan a different local project, replace the dot with that project's folder path. Paths with spaces should be wrapped in quotes.
+
 Local path examples:
 
 ```powershell
 foliolint scan ..\SortLab --explain
 foliolint scan ..\BESP2074 --no-score
+foliolint scan "C:\Users\Example\Downloads\My Project" --explain
 ```
 
 ```bash
 foliolint scan ../SortLab --explain
 foliolint scan ../BESP2074 --no-score
+foliolint scan "/Users/example/Downloads/My Project" --explain
 ```
 
 Remote scans for public GitHub repositories:
@@ -102,7 +108,9 @@ foliolint scan-url https://github.com/OWNER/REPO --branch main
 foliolint scan-url https://github.com/OWNER/REPO --max-download-mb 100
 ```
 
-`scan PATH` checks a folder that already exists on your computer and does not need internet access. `scan-url URL` downloads a public GitHub repository as a temporary ZIP file, checks it locally, and deletes the downloaded files afterwards. It does not use a GitHub API key. Private repositories are not supported by `scan-url`.
+Use `scan-url` when you want to check a public GitHub repository without manually cloning or keeping a copy of it.
+
+`scan PATH` checks a folder that already exists on your computer and does not need internet access. `scan-url URL` downloads a public GitHub repository as a temporary ZIP file, checks it locally, and deletes the downloaded files afterwards. The temporary files are created in your operating system's temp folder, not in the folder where you run FolioLint. It does not use a GitHub API key. Private repositories are not supported by `scan-url`.
 
 To protect disk space, `scan-url` stops downloads above 50 MB by default. Use `--max-download-mb` only when you intentionally want to scan a larger repository.
 
