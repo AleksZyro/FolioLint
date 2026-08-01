@@ -49,8 +49,18 @@ SECRET_PATTERNS = [
     "PRIVATE" + "_KEY",
     "BEGIN " + "RSA PRIVATE KEY",
 ]
+TEST_FILE_SUFFIXES = (
+    ".test.js",
+    ".test.jsx",
+    ".test.ts",
+    ".test.tsx",
+    ".spec.js",
+    ".spec.jsx",
+    ".spec.ts",
+    ".spec.tsx",
+)
 SECRET_ASSIGNMENT_RE = re.compile(
-    r"\b(API" + r"_KEY|SECRET|TOKEN|PASSWORD|PRIVATE" + r"_KEY)\b\s*[:=]",
+    r"(?<![-\w])(API" + r"_KEY|SECRET|TOKEN|PASSWORD|PRIVATE" + r"_KEY)(?![-\w])\s*[:=]",
     re.IGNORECASE,
 )
 WORKFLOW_HINTS = {
@@ -245,10 +255,7 @@ def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
     has_tests_dir = (path / "tests").is_dir() and not _is_ignored(path / "tests", path, config)
     test_files = []
     for file in files:
-        is_test_file = (file.name.startswith("test_") and file.suffix == ".py") or (
-            file.name.endswith("_test.py")
-        )
-        if is_test_file:
+        if _is_test_file(file):
             test_files.append(file)
     package_test = _package_json_has_test_script(path / "package.json")
     github_actions_details = _github_actions_details(path)
@@ -274,7 +281,9 @@ def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
     message = "Test setup detected." if points >= 8 else "No clear test setup detected."
     recommendations = []
     if not test_files:
-        recommendations.append("Add test_*.py or *_test.py files under tests/.")
+        recommendations.append(
+            "Add test files such as test_*.py, *_test.py, *.test.js or *.spec.ts."
+        )
     if not github_actions:
         recommendations.append(
             "Add a GitHub Actions workflow that runs pytest, ruff or another test command."
@@ -763,6 +772,13 @@ def _package_json_has_test_script(path: Path) -> bool:
         return False
     scripts = package.get("scripts", {})
     return isinstance(scripts, dict) and isinstance(scripts.get("test"), str)
+
+
+def _is_test_file(file: Path) -> bool:
+    name = file.name.lower()
+    if file.suffix == ".py" and (name.startswith("test_") or name.endswith("_test.py")):
+        return True
+    return any(name.endswith(suffix) for suffix in TEST_FILE_SUFFIXES)
 
 
 def _github_actions_details(path: Path) -> dict[str, object]:

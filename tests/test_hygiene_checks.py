@@ -96,6 +96,25 @@ def test_secret_check_skips_generated_dependency_folders(tmp_path: Path) -> None
     assert result.details["matches"] == []
 
 
+def test_secret_check_ignores_github_actions_id_token_permission(tmp_path: Path) -> None:
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "deploy.yml").write_text(
+        """
+name: Deploy
+permissions:
+  contents: read
+  id-token: write
+""",
+        encoding="utf-8",
+    )
+
+    result = check_secrets(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.details["matches"] == []
+
+
 def test_tests_check_ignores_empty_github_actions(tmp_path: Path) -> None:
     tests = tmp_path / "tests"
     tests.mkdir()
@@ -139,6 +158,34 @@ jobs:
     assert result.details["github_actions"] is True
     assert result.details["github_actions_tools"] == ["pytest", "python", "ruff"]
     assert result.points == 13
+
+
+def test_tests_check_detects_javascript_test_files(tmp_path: Path) -> None:
+    src = tmp_path / "src" / "utils"
+    src.mkdir(parents=True)
+    (src / "grid.test.js").write_text("import { test } from 'vitest'\n", encoding="utf-8")
+    (tmp_path / "package.json").write_text(
+        '{"scripts":{"test":"vitest run"}}',
+        encoding="utf-8",
+    )
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "ci.yml").write_text(
+        """
+name: CI
+jobs:
+  test:
+    steps:
+      - run: npm test
+""",
+        encoding="utf-8",
+    )
+
+    result = check_tests(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.details["test_files"] == ["src/utils/grid.test.js"]
+    assert result.points == 10
 
 
 def _init_git_repo(path: Path) -> None:
