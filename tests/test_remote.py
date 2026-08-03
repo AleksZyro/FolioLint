@@ -170,6 +170,21 @@ def test_download_zip_stops_while_streaming_large_response(tmp_path: Path, monke
         raise AssertionError("Expected RemoteScanError")
 
 
+def test_extract_zip_rejects_path_traversal(tmp_path: Path) -> None:
+    archive_path = tmp_path / "unsafe.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("../outside.txt", "owned")
+
+    try:
+        remote.extract_zip(archive_path, tmp_path / "extract")
+    except RemoteScanError as error:
+        assert "unsafe file paths" in str(error)
+    else:
+        raise AssertionError("Expected RemoteScanError")
+
+    assert not (tmp_path / "outside.txt").exists()
+
+
 def test_scan_url_json_output(tmp_path: Path, monkeypatch) -> None:
     archive = _make_repo_zip(tmp_path, "FolioLint-main")
 

@@ -147,11 +147,23 @@ def download_zip(
 def extract_zip(zip_path: Path, destination: Path) -> None:
     try:
         with zipfile.ZipFile(zip_path) as archive:
-            archive.extractall(destination)
+            _extract_zip_safely(archive, destination)
     except (OSError, zipfile.BadZipFile) as error:
         raise RemoteScanError(
             "FolioLint downloaded the repository ZIP, but could not unpack it."
         ) from error
+
+
+def _extract_zip_safely(archive: zipfile.ZipFile, destination: Path) -> None:
+    destination_root = destination.resolve()
+    for member in archive.infolist():
+        target_path = (destination_root / member.filename).resolve()
+        if not target_path.is_relative_to(destination_root):
+            raise RemoteScanError(
+                "FolioLint stopped unpacking the repository ZIP because it contains "
+                "unsafe file paths."
+            )
+        archive.extract(member, destination_root)
 
 
 def find_extracted_repo(temp_path: Path, zip_path: Path) -> Path:
