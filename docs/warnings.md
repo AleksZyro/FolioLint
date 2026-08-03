@@ -2,6 +2,8 @@
 
 FolioLint warnings are review prompts, not automatic failures. A warning means "check this before sharing", not "the project is bad".
 
+Run with `--details` when a warning is unclear. It shows the files, patterns or workflow hints that caused the result.
+
 ## README Warnings
 
 README checks use simple Markdown, command and keyword hints. A warning can be reasonable to ignore when:

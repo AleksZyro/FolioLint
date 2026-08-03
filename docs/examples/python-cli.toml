@@ -1,0 +1,10 @@
+[ignore]
+paths = ["dist", "build", ".pytest_cache"]
+checks = []
+
+[thresholds]
+large_file_mb = 5
+
+[project]
+type = "cli"
+status = "prototype"

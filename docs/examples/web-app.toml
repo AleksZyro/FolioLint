@@ -1,0 +1,10 @@
+[ignore]
+paths = ["dist", "build", "node_modules"]
+checks = []
+
+[thresholds]
+large_file_mb = 10
+
+[project]
+type = "web-app"
+status = "prototype"

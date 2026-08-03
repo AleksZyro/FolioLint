@@ -80,6 +80,7 @@ foliolint scan . --format json
 foliolint scan . --format markdown
 foliolint scan . --strict
 foliolint scan . --fail-under 75
+foliolint scan . --details
 ```
 
 The dot in `foliolint scan .` means "scan the folder I am currently in". To scan a different local project, replace the dot with that project's folder path. Paths with spaces should be wrapped in quotes.
@@ -176,9 +177,17 @@ The score is a public showcase readiness score from 0 to 100. It is not an objec
 
 Run with `--explain` to see why category points were given or deducted. README explanations include matching headings, code commands or keyword heuristics.
 
+Run with `--details` to show the files, patterns or workflow hints that caused a check. This is useful when a warning looks like a false positive.
+
 Run with `--no-score` to hide the score completely. Run with `--fail-under 75` when CI should fail below a chosen readiness threshold.
 
 Full scoring rules are documented in [docs/scoring.md](docs/scoring.md).
+
+Exit codes:
+
+- `0`: Scan completed.
+- `1`: Scan completed, but the score was below `--fail-under`.
+- `2`: Invalid input, unsupported URL or remote download problem.
 
 ## Configuration
 
@@ -198,6 +207,16 @@ status = "prototype"
 ```
 
 Ignored paths are skipped by file-based checks. Ignored checks appear as ignored and do not affect the score.
+
+Supported project types are optional and intentionally simple:
+
+- `web-app`: default weighting, demos and screenshots usually matter.
+- `local-app`: default weighting.
+- `cli`: screenshots and demos count less.
+- `library`: screenshots and demos count less.
+- `learning-project`: screenshots and demos count less.
+
+Example configs are available in [docs/examples](docs/examples).
 
 ## Limits
 
