@@ -498,7 +498,13 @@ def check_secrets(path: Path, config: ShowcaseConfig) -> CheckResult:
             continue
         match = _find_secret_hint(text)
         if match is not None:
-            matches.append({"path": file.relative_to(path).as_posix(), "pattern": match})
+            matches.append(
+                {
+                    "path": file.relative_to(path).as_posix(),
+                    "pattern": match["pattern"],
+                    "line": str(match["line"]),
+                }
+            )
 
     if matches:
         return CheckResult(
@@ -820,9 +826,12 @@ def _is_in_skipped_secret_dir(file: Path, root: Path) -> bool:
     return any(part in SECRET_SCAN_SKIP_DIRS for part in relative_parts[:-1])
 
 
-def _find_secret_hint(text: str) -> str | None:
+def _find_secret_hint(text: str) -> dict[str, int | str] | None:
     private_key_marker = "BEGIN " + "RSA PRIVATE KEY"
-    if private_key_marker in text.upper():
-        return private_key_marker
-    match = SECRET_ASSIGNMENT_RE.search(text)
-    return match.group(1).upper() if match else None
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if private_key_marker in line.upper():
+            return {"pattern": private_key_marker, "line": line_number}
+        match = SECRET_ASSIGNMENT_RE.search(line)
+        if match:
+            return {"pattern": match.group(1).upper(), "line": line_number}
+    return None

@@ -195,6 +195,8 @@ def test_scan_url_json_output(tmp_path: Path, monkeypatch) -> None:
     data = json.loads(result.stdout)
     assert data["checks"][0]["category"] == "README"
     assert "score" in data
+    assert data["remote"]["source_url"] == "https://github.com/AleksZyro/FolioLint"
+    assert data["remote"]["temporary_copy"] == "removed after scan"
 
 
 def test_scan_url_invalid_url_returns_clear_error() -> None:
@@ -255,6 +257,27 @@ def test_scan_url_passes_max_download_limit(tmp_path: Path, monkeypatch) -> None
 
     assert result.exit_code == 0
     assert limits == [7]
+
+
+def test_scan_url_text_output_shows_remote_cleanup(tmp_path: Path, monkeypatch) -> None:
+    archive = _make_repo_zip(tmp_path, "FolioLint-main")
+
+    def fake_download_zip(url: str, destination: Path, *, max_download_mb: int) -> None:
+        del url
+        del max_download_mb
+        destination.write_bytes(archive.read_bytes())
+
+    monkeypatch.setattr(remote, "download_zip", fake_download_zip)
+    runner = CliRunner()
+
+    result = runner.invoke(
+        app,
+        ["scan-url", "https://github.com/AleksZyro/FolioLint"],
+    )
+
+    assert result.exit_code == 0
+    assert "Remote: https://github.com/AleksZyro/FolioLint" in result.stdout
+    assert "Temporary copy: removed after scan" in result.stdout
 
 
 def _make_repo_zip(tmp_path: Path, root_name: str) -> Path:

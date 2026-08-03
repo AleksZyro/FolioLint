@@ -71,6 +71,7 @@ def test_secret_check_detects_obvious_risk_hint(tmp_path: Path) -> None:
 
     assert result.status == "warning"
     assert result.details["matches"][0]["pattern"] == "API_KEY"
+    assert result.details["matches"][0]["line"] == "1"
 
 
 def test_secret_check_ignores_documented_pattern_names(tmp_path: Path) -> None:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated
@@ -29,6 +30,10 @@ NoScoreOption = Annotated[
 ExplainOption = Annotated[
     bool,
     typer.Option("--explain", help="Explain category points."),
+]
+DetailsOption = Annotated[
+    bool,
+    typer.Option("--details", help="Show file and pattern details for checks."),
 ]
 FormatOption = Annotated[
     OutputFormat,
@@ -78,6 +83,7 @@ def scan(
     path: PathArgument,
     no_score: NoScoreOption = False,
     explain: ExplainOption = False,
+    details: DetailsOption = False,
     output_format: FormatOption = OutputFormat.text,
     strict: StrictOption = False,
     fail_under: FailUnderOption = None,
@@ -91,7 +97,11 @@ def scan(
     if output_format == OutputFormat.json:
         typer.echo(
             json.dumps(
-                report.to_dict(include_score=not no_score, include_explanation=explain),
+                report.to_dict(
+                    include_score=not no_score,
+                    include_explanation=explain,
+                    include_details=details,
+                ),
                 indent=2,
                 sort_keys=True,
             )
@@ -99,10 +109,10 @@ def scan(
         _exit_if_under_threshold(report.score, fail_under)
         return
     if output_format == OutputFormat.markdown:
-        typer.echo(render_markdown_report(report, include_score=not no_score))
+        typer.echo(render_markdown_report(report, include_score=not no_score, details=details))
         _exit_if_under_threshold(report.score, fail_under)
         return
-    render_text_report(report, include_score=not no_score, explain=explain)
+    render_text_report(report, include_score=not no_score, explain=explain, details=details)
     _exit_if_under_threshold(report.score, fail_under)
 
 
@@ -112,6 +122,7 @@ def scan_url(
     branch: BranchOption = None,
     no_score: NoScoreOption = False,
     explain: ExplainOption = False,
+    details: DetailsOption = False,
     output_format: FormatOption = OutputFormat.text,
     strict: StrictOption = False,
     fail_under: FailUnderOption = None,
@@ -129,11 +140,25 @@ def scan_url(
             max_download_mb=max_download_mb,
         ) as remote:
             report = scan_project(remote.path, include_score=not no_score, strict=strict)
+            report = replace(
+                report,
+                remote={
+                    "source_url": url,
+                    "branch": remote.branch,
+                    "temporary_copy": "removed after scan",
+                },
+            )
     except RemoteScanError as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(2) from error
 
-    _render_report(report, include_score=not no_score, explain=explain, output_format=output_format)
+    _render_report(
+        report,
+        include_score=not no_score,
+        explain=explain,
+        details=details,
+        output_format=output_format,
+    )
     _exit_if_under_threshold(report.score, fail_under)
 
 
@@ -142,21 +167,26 @@ def _render_report(
     *,
     include_score: bool,
     explain: bool,
+    details: bool,
     output_format: OutputFormat,
 ) -> None:
     if output_format == OutputFormat.json:
         typer.echo(
             json.dumps(
-                report.to_dict(include_score=include_score, include_explanation=explain),
+                report.to_dict(
+                    include_score=include_score,
+                    include_explanation=explain,
+                    include_details=details,
+                ),
                 indent=2,
                 sort_keys=True,
             )
         )
         return
     if output_format == OutputFormat.markdown:
-        typer.echo(render_markdown_report(report, include_score=include_score))
+        typer.echo(render_markdown_report(report, include_score=include_score, details=details))
         return
-    render_text_report(report, include_score=include_score, explain=explain)
+    render_text_report(report, include_score=include_score, explain=explain, details=details)
 
 
 def _exit_if_under_threshold(score: int | None, fail_under: int | None) -> None:

@@ -17,7 +17,12 @@ class CheckResult:
     explanation: str = ""
     recommendations: list[str] = field(default_factory=list)
 
-    def to_dict(self, *, include_explanation: bool = False) -> dict[str, Any]:
+    def to_dict(
+        self,
+        *,
+        include_explanation: bool = False,
+        include_details: bool = False,
+    ) -> dict[str, Any]:
         data: dict[str, Any] = {
             "category": self.category,
             "status": self.status,
@@ -27,6 +32,7 @@ class CheckResult:
         }
         if include_explanation:
             data["explanation"] = self.explanation
+        if include_explanation or include_details:
             data["details"] = self.details
         return data
 
@@ -39,19 +45,27 @@ class ScanReport:
     score: int | None = None
     status: str | None = None
     strict: bool = False
+    remote: dict[str, Any] | None = None
 
     def to_dict(
         self,
         *,
         include_score: bool = True,
         include_explanation: bool = False,
+        include_details: bool = False,
     ) -> dict[str, Any]:
         data: dict[str, Any] = {
             "checks": [
-                check.to_dict(include_explanation=include_explanation) for check in self.checks
+                check.to_dict(
+                    include_explanation=include_explanation,
+                    include_details=include_details,
+                )
+                for check in self.checks
             ],
             "recommendations": self.recommendations,
         }
+        if self.remote:
+            data["remote"] = self.remote
         if include_score:
             data = {"score": self.score, "status": self.status, **data}
         return data

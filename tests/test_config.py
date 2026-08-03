@@ -119,3 +119,14 @@ def test_cli_fail_under_rejects_no_score(tmp_path: Path) -> None:
 
     assert result.exit_code == 2
     assert "--fail-under cannot be used together with --no-score" in result.stderr
+
+
+def test_cli_details_shows_check_details(tmp_path: Path) -> None:
+    (tmp_path / "settings.py").write_text("PASS" + "WORD = 'example'\n", encoding="utf-8")
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["scan", str(tmp_path), "--details"])
+
+    assert result.exit_code == 0
+    assert "Details" in result.stdout
+    assert "settings.py:1" in result.stdout
