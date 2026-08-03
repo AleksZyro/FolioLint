@@ -5,7 +5,7 @@ from pathlib import Path
 from foliolint.checks import run_checks
 from foliolint.config import load_config
 from foliolint.models import ScanReport
-from foliolint.scoring import apply_strict_mode, calculate_score, score_status
+from foliolint.scoring import apply_project_type, apply_strict_mode, calculate_score, score_status
 
 
 def scan_project(path: Path, *, include_score: bool = True, strict: bool = False) -> ScanReport:
@@ -17,6 +17,7 @@ def scan_project(path: Path, *, include_score: bool = True, strict: bool = False
 
     config = load_config(root)
     checks = run_checks(root, config)
+    checks = apply_project_type(checks, config.project.type)
     if strict:
         checks = apply_strict_mode(checks)
 

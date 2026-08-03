@@ -4,6 +4,8 @@ from dataclasses import replace
 
 from foliolint.models import CheckResult
 
+MEDIA_LIGHT_PROJECT_TYPES = {"cli", "library", "learning-project"}
+
 
 def score_status(score: int) -> str:
     if score < 50:
@@ -33,6 +35,39 @@ def apply_strict_mode(checks: list[CheckResult]) -> list[CheckResult]:
             explanation = f"Strict mode deducted {check.points - new_points} point(s)."
         strict_checks.append(replace(check, points=new_points, explanation=explanation))
     return strict_checks
+
+
+def apply_project_type(checks: list[CheckResult], project_type: str | None) -> list[CheckResult]:
+    if project_type is None:
+        return checks
+
+    normalized = project_type.strip().lower()
+    if normalized not in MEDIA_LIGHT_PROJECT_TYPES:
+        return checks
+
+    adjusted: list[CheckResult] = []
+    for check in checks:
+        if check.category not in {"Media", "Demo"}:
+            adjusted.append(check)
+            continue
+
+        max_points = min(check.max_points, 5)
+        points = min(check.points, max_points)
+        details = {**check.details, "project_type_adjustment": normalized}
+        explanation = (
+            f"{check.explanation} Project type '{normalized}' reduced this category "
+            f"to {max_points} max point(s)."
+        )
+        adjusted.append(
+            replace(
+                check,
+                points=points,
+                max_points=max_points,
+                details=details,
+                explanation=explanation,
+            )
+        )
+    return adjusted
 
 
 def calculate_score(checks: list[CheckResult]) -> int:

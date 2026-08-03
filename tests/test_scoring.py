@@ -1,5 +1,10 @@
 from foliolint.models import CheckResult
-from foliolint.scoring import apply_strict_mode, calculate_score, score_status
+from foliolint.scoring import (
+    apply_project_type,
+    apply_strict_mode,
+    calculate_score,
+    score_status,
+)
 
 
 def test_score_status_bands() -> None:
@@ -35,3 +40,26 @@ def test_strict_mode_deducts_for_missing_ci() -> None:
 
     assert strict[0].points == 7
     assert "Strict mode" in strict[0].explanation
+
+
+def test_project_type_reduces_media_weight_for_library() -> None:
+    checks = [
+        CheckResult("Media", "warning", "missing media", 0, 10, explanation="Media gets 0/10."),
+        CheckResult("Demo", "warning", "missing demo", 0, 10, explanation="Demo gets 0/10."),
+        CheckResult("README", "ok", "readme", 25, 25),
+    ]
+
+    adjusted = apply_project_type(checks, "library")
+
+    assert adjusted[0].max_points == 5
+    assert adjusted[1].max_points == 5
+    assert adjusted[0].details["project_type_adjustment"] == "library"
+    assert calculate_score(adjusted) > calculate_score(checks)
+
+
+def test_project_type_keeps_default_weight_for_web_app() -> None:
+    checks = [CheckResult("Media", "warning", "missing media", 0, 10)]
+
+    adjusted = apply_project_type(checks, "web-app")
+
+    assert adjusted == checks
