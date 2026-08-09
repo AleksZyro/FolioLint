@@ -11,6 +11,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 DEFAULT_MAX_DOWNLOAD_MB = 50
+DEFAULT_MAX_EXTRACTED_MB = 250
+DEFAULT_MAX_ARCHIVE_FILES = 5000
 BYTES_PER_MB = 1024 * 1024
 
 
@@ -20,6 +22,10 @@ class RemoteScanError(RuntimeError):
 
 class DownloadTooLargeError(RemoteScanError):
     """Raised when a repository ZIP exceeds the configured download limit."""
+
+
+class ArchiveTooLargeError(RemoteScanError):
+    """Raised when a repository ZIP expands beyond configured extraction limits."""
 
 
 @dataclass(frozen=True)
@@ -144,9 +150,21 @@ def download_zip(
         ) from error
 
 
-def extract_zip(zip_path: Path, destination: Path) -> None:
+def extract_zip(
+    zip_path: Path,
+    destination: Path,
+    *,
+    max_extracted_mb: int = DEFAULT_MAX_EXTRACTED_MB,
+    max_files: int = DEFAULT_MAX_ARCHIVE_FILES,
+) -> None:
     try:
         with zipfile.ZipFile(zip_path) as archive:
+            _validate_zip_members(
+                archive,
+                destination,
+                max_extracted_mb=max_extracted_mb,
+                max_files=max_files,
+            )
             _extract_zip_safely(archive, destination)
     except (OSError, zipfile.BadZipFile) as error:
         raise RemoteScanError(
@@ -191,3 +209,35 @@ def _content_length_exceeds_limit(content_length: str | None, max_bytes: int) ->
         return int(content_length) > max_bytes
     except ValueError:
         return False
+
+
+def _validate_zip_members(
+    archive: zipfile.ZipFile,
+    destination: Path,
+    *,
+    max_extracted_mb: int,
+    max_files: int,
+) -> None:
+    members = archive.infolist()
+    file_members = [member for member in members if not member.is_dir()]
+    if len(file_members) > max_files:
+        raise ArchiveTooLargeError(
+            f"FolioLint stopped the ZIP because it contains more than {max_files} files."
+        )
+
+    max_extracted_bytes = max_extracted_mb * BYTES_PER_MB
+    extracted_bytes = sum(member.file_size for member in file_members)
+    if extracted_bytes > max_extracted_bytes:
+        raise ArchiveTooLargeError(
+            f"FolioLint stopped the ZIP because it expands beyond {max_extracted_mb} MB."
+        )
+
+    destination_root = destination.resolve()
+    for member in members:
+        member_path = destination_root / member.filename
+        try:
+            member_path.resolve().relative_to(destination_root)
+        except ValueError as error:
+            raise RemoteScanError(
+                "FolioLint stopped the ZIP because it contains an unsafe file path."
+            ) from error

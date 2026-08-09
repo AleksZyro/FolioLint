@@ -60,7 +60,10 @@ TEST_FILE_SUFFIXES = (
     ".spec.tsx",
 )
 SECRET_ASSIGNMENT_RE = re.compile(
-    r"(?<![-\w])(API" + r"_KEY|SECRET|TOKEN|PASSWORD|PRIVATE" + r"_KEY)(?![-\w])\s*[:=]",
+    (
+        r"(?<![-\w])(?P<name>(?:[A-Z0-9]+_){0,4}"
+        r"(?:API_KEY|SECRET|TOKEN|PASSWORD|PRIVATE_KEY))(?![-\w])\s*[:=]"
+    ),
     re.IGNORECASE,
 )
 WORKFLOW_HINTS = {
@@ -833,5 +836,5 @@ def _find_secret_hint(text: str) -> dict[str, int | str] | None:
             return {"pattern": private_key_marker, "line": line_number}
         match = SECRET_ASSIGNMENT_RE.search(line)
         if match:
-            return {"pattern": match.group(1).upper(), "line": line_number}
+            return {"pattern": match.group("name").upper(), "line": line_number}
     return None

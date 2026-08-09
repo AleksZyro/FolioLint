@@ -3,11 +3,15 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from foliolint import remote
 from foliolint.cli import app
-from foliolint.remote import RemoteScanError, parse_github_repo_url, prepare_remote_repository
+from foliolint.remote import (
+    RemoteScanError,
+    extract_zip,
+    parse_github_repo_url,
+    prepare_remote_repository,
+)
+from typer.testing import CliRunner
 
 
 def test_parse_github_repo_url_accepts_simple_url() -> None:
@@ -170,15 +174,29 @@ def test_download_zip_stops_while_streaming_large_response(tmp_path: Path, monke
         raise AssertionError("Expected RemoteScanError")
 
 
-def test_extract_zip_rejects_path_traversal(tmp_path: Path) -> None:
-    archive_path = tmp_path / "unsafe.zip"
+def test_extract_zip_rejects_too_many_files(tmp_path: Path) -> None:
+    archive_path = tmp_path / "many.zip"
     with zipfile.ZipFile(archive_path, "w") as archive:
-        archive.writestr("../outside.txt", "owned")
+        archive.writestr("repo/one.txt", "one")
+        archive.writestr("repo/two.txt", "two")
 
     try:
-        remote.extract_zip(archive_path, tmp_path / "extract")
+        extract_zip(archive_path, tmp_path / "out", max_files=1)
     except RemoteScanError as error:
-        assert "unsafe file paths" in str(error)
+        assert "more than 1 files" in str(error)
+    else:
+        raise AssertionError("Expected RemoteScanError")
+
+
+def test_extract_zip_rejects_zip_slip_path(tmp_path: Path) -> None:
+    archive_path = tmp_path / "unsafe.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("../outside.txt", "unsafe")
+
+    try:
+        extract_zip(archive_path, tmp_path / "out")
+    except RemoteScanError as error:
+        assert "unsafe file path" in str(error)
     else:
         raise AssertionError("Expected RemoteScanError")
 

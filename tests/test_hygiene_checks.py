@@ -74,6 +74,16 @@ def test_secret_check_detects_obvious_risk_hint(tmp_path: Path) -> None:
     assert result.details["matches"][0]["line"] == "1"
 
 
+def test_secret_check_detects_provider_prefixed_api_key(tmp_path: Path) -> None:
+    (tmp_path / "settings.py").write_text("OPENAI_API" + "_KEY = 'not-real'\n", encoding="utf-8")
+
+    result = check_secrets(tmp_path, ShowcaseConfig())
+
+    assert result.status == "warning"
+    assert result.details["matches"][0]["pattern"] == "OPENAI_API_KEY"
+    assert result.details["matches"][0]["line"] == "1"
+
+
 def test_secret_check_ignores_documented_pattern_names(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text(
         "The tool can mention API" + "_KEY, SECRET and TO" + "KEN as examples.\n",
