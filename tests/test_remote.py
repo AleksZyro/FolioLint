@@ -3,6 +3,8 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 
+from typer.testing import CliRunner
+
 from foliolint import remote
 from foliolint.cli import app
 from foliolint.remote import (
@@ -11,7 +13,6 @@ from foliolint.remote import (
     parse_github_repo_url,
     prepare_remote_repository,
 )
-from typer.testing import CliRunner
 
 
 def test_parse_github_repo_url_accepts_simple_url() -> None:
