@@ -5,10 +5,11 @@ build-backend = "hatchling.build"
 [project]
 name = "foliolint"
 version = "0.1.0"
-description = "Local CLI checks for public showcase readiness of repositories."
+description = "Local Python CLI for GitHub portfolio linting and repository showcase readiness checks."
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "FolioLint contributors" }]
+keywords = ["portfolio", "github", "readme", "cli", "linter", "repository-hygiene", "showcase-readiness"]
 dependencies = [
   "rich>=13.7",
   "typer>=0.12",

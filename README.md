@@ -1,12 +1,23 @@
 # FolioLint
 
-FolioLint is a local Python CLI that checks whether a repository is prepared for public presentation. It focuses on portfolio and showcase readiness: README, setup, usage, tests, license, screenshots, demo hints, repository hygiene, large files and obvious secret risk hints.
+FolioLint is a local Python portfolio linting CLI that checks whether a repository is prepared for public presentation on GitHub. It focuses on portfolio and showcase readiness: README, setup, usage, tests, license, screenshots, demo hints, repository hygiene, large files and obvious secret risk hints.
 
 FolioLint helps you find boring but important repo presentation issues before sharing a project publicly.
 
 It is not a code quality tool, not a security scanner, not an AI tool and not a recruiter oracle. The goal is a repeatable local checklist with transparent scoring.
 
 ![FolioLint scan-url example](docs/assets/foliolint-scan-url-gitfut.png)
+
+## Search Profile
+
+This repository is relevant for searches such as:
+
+- portfolio linter for GitHub repositories
+- repository showcase readiness checker
+- README checklist CLI
+- Python Typer CLI for project hygiene
+- local repo audit tool for screenshots, license, tests and demo links
+- GitHub portfolio project checker without an API key
 
 ## What It Checks
 
@@ -236,6 +247,11 @@ foliolint scan ../BESP-Balkan-Economy-Simulation-Player- --explain
 ```
 
 These runs helped improve noisy warnings around generated folders, dependency folders and obvious secret-risk hints.
+
+## Repository Metadata Suggestion
+
+- Description: `Local Python CLI for GitHub portfolio linting and repository showcase readiness checks.`
+- Topics: `python`, `cli`, `portfolio`, `github`, `readme`, `linter`, `repository-hygiene`, `showcase-readiness`
 
 ## Roadmap
 
