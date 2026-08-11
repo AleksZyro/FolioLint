@@ -1,11 +1,10 @@
 import json
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from foliolint.cli import app
 from foliolint.config import load_config
 from foliolint.scanner import scan_project
+from typer.testing import CliRunner
 
 
 def test_config_uses_defaults_without_file(tmp_path: Path) -> None:

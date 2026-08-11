@@ -1,10 +1,9 @@
 from pathlib import Path
 
-from typer.testing import CliRunner
-
 from foliolint.checks import check_readme
 from foliolint.cli import app
 from foliolint.config import ShowcaseConfig
+from typer.testing import CliRunner
 
 
 def test_readme_check_empty_project(tmp_path: Path) -> None:
