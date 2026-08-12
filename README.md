@@ -1,5 +1,7 @@
 # FolioLint
 
+**English** | [Deutsch](README_DE.md)
+
 FolioLint is a local Python portfolio linting CLI that checks whether a repository is prepared for public presentation on GitHub. It focuses on portfolio and showcase readiness: README, setup, usage, tests, license, screenshots, demo hints, repository hygiene, large files and obvious secret risk hints.
 
 FolioLint helps you find boring but important repo presentation issues before sharing a project publicly.
