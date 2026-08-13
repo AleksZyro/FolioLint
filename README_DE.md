@@ -27,7 +27,8 @@ Voraussetzungen:
 - Python `3.11` oder neuer
 - Git, wenn du das Repository klonen willst
 
-Windows PowerShell:
+<details open>
+<summary>Installation mit Windows PowerShell</summary>
 
 ```powershell
 git clone https://github.com/AleksZyro/FolioLint.git
@@ -37,7 +38,10 @@ python -m venv .venv
 python -m pip install -e ".[dev]"
 ```
 
-macOS oder Linux:
+</details>
+
+<details>
+<summary>Installation mit macOS oder Linux</summary>
 
 ```bash
 git clone https://github.com/AleksZyro/FolioLint.git
@@ -46,6 +50,8 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
 ```
+
+</details>
 
 ## Nutzung
 
@@ -58,7 +64,8 @@ foliolint scan . --format markdown
 foliolint scan . --fail-under 75
 ```
 
-Öffentliches GitHub-Repository prüfen:
+<details open>
+<summary>Öffentliches GitHub-Repository prüfen</summary>
 
 ```bash
 foliolint scan-url https://github.com/AleksZyro/FolioLint --explain
@@ -66,6 +73,8 @@ foliolint scan-url https://github.com/OWNER/REPO --format json
 ```
 
 `scan PATH` arbeitet lokal und braucht keinen Internetzugang. `scan-url URL` lädt ein öffentliches GitHub-Repository temporär als ZIP herunter, prüft es lokal und löscht die temporären Dateien danach wieder.
+
+</details>
 
 ## Beispiel
 
@@ -83,13 +92,16 @@ Tests             OK           pytest tests detected
 Media             Warning      No screenshots or demo media found
 ```
 
-## Qualitätssicherung
+<details>
+<summary>Qualitätssicherung</summary>
 
 ```bash
 python -m pytest
 python -m ruff check .
 python -m ruff format --check .
 ```
+
+</details>
 
 ## Grenzen
 
@@ -106,10 +118,13 @@ python -m ruff format --check .
 - pytest
 - Ruff
 
-## Repository-Metadaten Vorschlag
+<details>
+<summary>Repository-Metadaten Vorschlag</summary>
 
 - Description: `Local Python CLI for GitHub portfolio linting and repository showcase readiness checks.`
 - Topics: `python`, `cli`, `portfolio`, `github`, `readme`, `linter`, `repository-hygiene`, `showcase-readiness`
+
+</details>
 
 ## Lizenz
 
