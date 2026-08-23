@@ -19,3 +19,4 @@ FolioLint is intentionally small, local and rule-based.
 - Report export writes the generated result to a local file. FolioLint does not upload the report anywhere or modify the scanned repository.
 - Baselines compare the stored score and category results only. They do not prove that the code or documentation improved in a meaningful way.
 - The GitHub Actions example installs FolioLint from the configured package source. CI therefore needs internet access even though local `scan PATH` does not.
+- The example pins the FolioLint commit and direct package versions. A fully hash-locked dependency mirror is outside the current MVP scope.
