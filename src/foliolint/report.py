@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from html import escape
+
 from rich.console import Console
 from rich.table import Table
 
@@ -115,6 +117,84 @@ def render_markdown_report(
             lines.append(f"{index}. {recommendation}")
 
     return "\n".join(lines) + "\n"
+
+
+def render_html_report(
+    report: ScanReport,
+    *,
+    include_score: bool = True,
+    details: bool = False,
+    baseline: dict | None = None,
+) -> str:
+    score_block = ""
+    if include_score:
+        score_block = (
+            f'<div class="score"><strong>{escape(str(report.score))}/100</strong>'
+            f"<span>{escape(report.status or '')}</span></div>"
+        )
+    rows = []
+    for check in report.checks:
+        points = f"{check.points}/{check.max_points}" if check.max_points else "-"
+        detail = ""
+        if details:
+            detail_lines = _detail_lines(check.details)
+            if detail_lines:
+                detail = f'<div class="details">{escape("; ".join(detail_lines))}</div>'
+        rows.append(
+            "<tr>"
+            f"<td>{escape(check.category)}</td>"
+            f'<td class="status-{escape(check.status)}">{escape(check.status)}</td>'
+            f"<td>{escape(points)}</td>"
+            f"<td>{escape(check.message)}{detail}</td>"
+            "</tr>"
+        )
+    recommendations = "".join(f"<li>{escape(item)}</li>" for item in report.recommendations)
+    baseline_block = ""
+    if baseline is not None:
+        baseline_block = (
+            "<h2>Baseline comparison</h2><pre>" + escape(_format_baseline(baseline)) + "</pre>"
+        )
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FolioLint report</title>
+<style>
+body {{ background:#10141b; color:#e8edf3; font:16px/1.5 system-ui,sans-serif; margin:0; }}
+main {{ max-width:1000px; margin:40px auto; padding:0 24px; }}
+.score {{ display:flex; gap:20px; align-items:baseline; margin:20px 0; }}
+.score strong {{ color:#72b7ff; font-size:2rem; }}
+.score span {{ color:#9fe3ad; }}
+table {{ border-collapse:collapse; width:100%; background:#171d26; }}
+th,td {{ border-bottom:1px solid #303947; padding:12px; text-align:left; vertical-align:top; }}
+th {{ color:#aebbd0; }}
+.status-ok {{ color:#82d994; }} .status-warning {{ color:#ffd27d; }}
+.status-ignored {{ color:#aebbd0; }} .details {{ color:#aebbd0; font-size:.9rem; margin-top:6px; }}
+li {{ margin:8px 0; }} pre {{ white-space:pre-wrap; background:#171d26; padding:16px; }}
+</style>
+</head>
+<body><main><h1>FolioLint Report</h1>
+<p>Path: <code>{escape(report.path)}</code></p>{score_block}
+<table><thead><tr><th>Category</th><th>Status</th><th>Points</th><th>Notes</th></tr></thead>
+<tbody>{"".join(rows)}</tbody></table>
+{("<h2>Recommended next steps</h2><ol>" + recommendations + "</ol>") if recommendations else ""}
+{baseline_block}
+</main></body></html>
+"""
+
+
+def _format_baseline(baseline: dict) -> str:
+    delta = baseline.get("score_delta")
+    delta_text = "n/a" if delta is None else f"{delta:+}"
+    lines = [
+        f"Score: {baseline.get('baseline_score')} -> {baseline.get('current_score')} ({delta_text})"
+    ]
+    for change in baseline.get("changed_checks", []):
+        lines.append(f"- {change.get('category')}: {change.get('change')}")
+    if len(lines) == 1:
+        lines.append("- No category changes")
+    return "\n".join(lines)
 
 
 def _escape_markdown_table(value: str) -> str:
