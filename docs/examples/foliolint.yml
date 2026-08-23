@@ -22,7 +22,11 @@ jobs:
           python-version: "3.11"
 
       - name: Install FolioLint
-        run: python -m pip install "git+https://github.com/AleksZyro/FolioLint.git"
+        # Pin the tool source to the reviewed commit. Update deliberately when upgrading FolioLint.
+        run: python -m pip install --no-deps "git+https://github.com/AleksZyro/FolioLint.git@0848d4c6a40baf0e8becbbe369e5f8f1cc5dc1ac"
+
+      - name: Install pinned runtime dependencies
+        run: python -m pip install "rich==15.0.0" "typer==0.27.0"
 
       - name: Run FolioLint
         run: foliolint scan . --format markdown --output foliolint-report.md --fail-under 75
