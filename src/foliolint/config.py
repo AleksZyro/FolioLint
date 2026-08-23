@@ -6,6 +6,19 @@ from pathlib import Path
 from typing import Any
 
 CONFIG_FILE = ".foliolint.toml"
+DEFAULT_CONFIG = """# Optional FolioLint configuration
+
+[ignore]
+# paths = ["dist", "docs/assets/large-demo.mp4"]
+# checks = ["demo-link"]
+
+[thresholds]
+large_file_mb = 5
+
+[project]
+# type = "web-app"
+# status = "prototype"
+"""
 
 
 @dataclass(frozen=True)

@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from enum import StrEnum
+from io import StringIO
 from pathlib import Path
 from typing import Annotated
 
 import typer
 
+from foliolint.config import CONFIG_FILE, DEFAULT_CONFIG
 from foliolint.remote import DEFAULT_MAX_DOWNLOAD_MB, RemoteScanError, prepare_remote_repository
 from foliolint.report import render_markdown_report, render_text_report
 from foliolint.scanner import scan_project
@@ -68,6 +70,14 @@ MaxDownloadOption = Annotated[
         help="Maximum ZIP download size for scan-url.",
     ),
 ]
+OutputPathOption = Annotated[
+    Path | None,
+    typer.Option("--output", help="Write the report to a file instead of the terminal."),
+]
+InitPathArgument = Annotated[
+    Path,
+    typer.Argument(help="Folder where the config should be created."),
+]
 
 
 app = typer.Typer(no_args_is_help=True, help="Check local repository showcase readiness.")
@@ -87,6 +97,7 @@ def scan(
     output_format: FormatOption = OutputFormat.text,
     strict: StrictOption = False,
     fail_under: FailUnderOption = None,
+    output: OutputPathOption = None,
 ) -> None:
     """Scan a repository path."""
     if no_score and fail_under is not None:
@@ -95,24 +106,25 @@ def scan(
 
     report = scan_project(path, include_score=not no_score, strict=strict)
     if output_format == OutputFormat.json:
-        typer.echo(
-            json.dumps(
-                report.to_dict(
-                    include_score=not no_score,
-                    include_explanation=explain,
-                    include_details=details,
-                ),
-                indent=2,
-                sort_keys=True,
-            )
+        content = json.dumps(
+            report.to_dict(
+                include_score=not no_score,
+                include_explanation=explain,
+                include_details=details,
+            ),
+            indent=2,
+            sort_keys=True,
         )
+        _emit(content, output)
         _exit_if_under_threshold(report.score, fail_under)
         return
     if output_format == OutputFormat.markdown:
-        typer.echo(render_markdown_report(report, include_score=not no_score, details=details))
+        _emit(render_markdown_report(report, include_score=not no_score, details=details), output)
         _exit_if_under_threshold(report.score, fail_under)
         return
-    render_text_report(report, include_score=not no_score, explain=explain, details=details)
+    _emit_text_report(
+        report, include_score=not no_score, explain=explain, details=details, output=output
+    )
     _exit_if_under_threshold(report.score, fail_under)
 
 
@@ -127,6 +139,7 @@ def scan_url(
     strict: StrictOption = False,
     fail_under: FailUnderOption = None,
     max_download_mb: MaxDownloadOption = DEFAULT_MAX_DOWNLOAD_MB,
+    output: OutputPathOption = None,
 ) -> None:
     """Download a public GitHub repository ZIP temporarily and scan it."""
     if no_score and fail_under is not None:
@@ -158,6 +171,7 @@ def scan_url(
         explain=explain,
         details=details,
         output_format=output_format,
+        output=output,
     )
     _exit_if_under_threshold(report.score, fail_under)
 
@@ -169,24 +183,78 @@ def _render_report(
     explain: bool,
     details: bool,
     output_format: OutputFormat,
+    output: Path | None,
 ) -> None:
     if output_format == OutputFormat.json:
-        typer.echo(
-            json.dumps(
-                report.to_dict(
-                    include_score=include_score,
-                    include_explanation=explain,
-                    include_details=details,
-                ),
-                indent=2,
-                sort_keys=True,
-            )
+        content = json.dumps(
+            report.to_dict(
+                include_score=include_score,
+                include_explanation=explain,
+                include_details=details,
+            ),
+            indent=2,
+            sort_keys=True,
         )
+        _emit(content, output)
         return
     if output_format == OutputFormat.markdown:
-        typer.echo(render_markdown_report(report, include_score=include_score, details=details))
+        _emit(render_markdown_report(report, include_score=include_score, details=details), output)
         return
-    render_text_report(report, include_score=include_score, explain=explain, details=details)
+    _emit_text_report(
+        report, include_score=include_score, explain=explain, details=details, output=output
+    )
+
+
+@app.command()
+def init(path: InitPathArgument = Path(".")) -> None:
+    """Create a commented example configuration without overwriting files."""
+    target = path.resolve()
+    if not target.is_dir():
+        typer.echo(f"Error: Folder does not exist: {path}", err=True)
+        raise typer.Exit(2)
+    config_path = target / CONFIG_FILE
+    if config_path.exists():
+        typer.echo(f"Error: {CONFIG_FILE} already exists; it was not changed.", err=True)
+        raise typer.Exit(2)
+    try:
+        config_path.write_text(DEFAULT_CONFIG, encoding="utf-8")
+    except OSError as error:
+        typer.echo(f"Error: Could not create {config_path}: {error}", err=True)
+        raise typer.Exit(2) from error
+    typer.echo(f"Created {config_path}")
+
+
+def _emit(content: str, output: Path | None) -> None:
+    if output is None:
+        typer.echo(content, nl=not content.endswith("\n"))
+        return
+    try:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(content if content.endswith("\n") else content + "\n", encoding="utf-8")
+    except OSError as error:
+        typer.echo(f"Error: Could not write report to {output}: {error}", err=True)
+        raise typer.Exit(2) from error
+    typer.echo(f"Report written to {output}")
+
+
+def _emit_text_report(
+    report, *, include_score: bool, explain: bool, details: bool, output: Path | None
+) -> None:
+    if output is None:
+        render_text_report(report, include_score=include_score, explain=explain, details=details)
+        return
+    from rich.console import Console
+
+    buffer = StringIO()
+    console = Console(file=buffer, width=120, color_system=None, force_terminal=False)
+    render_text_report(
+        report,
+        include_score=include_score,
+        explain=explain,
+        details=details,
+        console=console,
+    )
+    _emit(buffer.getvalue(), output)
 
 
 def _exit_if_under_threshold(score: int | None, fail_under: int | None) -> None:

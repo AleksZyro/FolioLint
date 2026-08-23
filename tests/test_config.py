@@ -3,8 +3,9 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from foliolint.checks import detect_project_type
 from foliolint.cli import app
-from foliolint.config import load_config
+from foliolint.config import CONFIG_FILE, load_config
 from foliolint.scanner import scan_project
 
 
@@ -57,6 +58,49 @@ paths = ["dist"]
     hygiene = next(check for check in report.checks if check.category == "Hygiene")
 
     assert hygiene.status == "ok"
+
+
+def test_init_creates_example_config_without_overwriting(tmp_path: Path) -> None:
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["init", str(tmp_path)])
+
+    assert result.exit_code == 0
+    config_path = tmp_path / CONFIG_FILE
+    assert config_path.exists()
+    assert "[thresholds]" in config_path.read_text(encoding="utf-8")
+
+    second = runner.invoke(app, ["init", str(tmp_path)])
+
+    assert second.exit_code == 2
+    assert "already exists" in second.stderr
+
+
+def test_project_type_detection_supports_python_and_react(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n", encoding="utf-8")
+    assert detect_project_type(tmp_path)[0] == "python"
+
+    (tmp_path / "pyproject.toml").unlink()
+    (tmp_path / "package.json").write_text(
+        '{"dependencies": {"react": "18"}, "scripts": {"dev": "vite"}}',
+        encoding="utf-8",
+    )
+    assert detect_project_type(tmp_path)[0] == "react"
+
+
+def test_cli_output_writes_report_file(tmp_path: Path) -> None:
+    runner = CliRunner()
+    output_path = tmp_path / "reports" / "scan.md"
+
+    result = runner.invoke(
+        app,
+        ["scan", str(tmp_path), "--format", "markdown", "--output", str(output_path)],
+    )
+
+    assert result.exit_code == 0
+    assert "| Category | Status | Points | Notes |" not in result.stdout
+    assert "Report written to" in result.stdout
+    assert "# FolioLint Report" in output_path.read_text(encoding="utf-8")
 
 
 def test_cli_json_output_is_stable(tmp_path: Path) -> None:
