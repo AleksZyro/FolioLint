@@ -15,3 +15,5 @@ FolioLint is intentionally small, local and rule-based.
 - `scan-url` tries the `main` branch first, then `master`. Use `--branch` for a different branch.
 - `scan-url` stops ZIP downloads above 50 MB by default to protect disk space. Use `--max-download-mb` for larger repositories.
 - ZIP downloads are not full Git clones, so Git-aware hygiene checks are less precise for `scan-url` than for local Git repositories.
+- Project type detection is intentionally conservative. It uses common files such as `pyproject.toml`, `package.json`, `vite.config.*` and HTML entrypoints; it does not understand every custom framework or build setup.
+- Report export writes the generated result to a local file. FolioLint does not upload the report anywhere or modify the scanned repository.

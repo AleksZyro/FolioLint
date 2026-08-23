@@ -51,6 +51,10 @@ Remote `scan-url` checks use GitHub ZIP downloads, not full Git clones. This mea
 
 Before public sharing, check what is actually tracked by git.
 
+## Project-Type Warnings
+
+Project type detection is based on common filenames and package metadata. A custom project can be detected as `node`, `python` or `static-web` even when its actual workflow is different. Treat the detected type as a hint and set `project.type` in `.foliolint.toml` when the default is not suitable.
+
 ## Secret-Risk Warnings
 
 The secret-risk check only looks for obvious assignment-style hints in normal project files. It skips common generated and dependency folders to reduce noise.

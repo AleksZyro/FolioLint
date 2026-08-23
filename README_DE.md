@@ -62,6 +62,8 @@ foliolint scan .
 foliolint scan . --explain
 foliolint scan . --format markdown
 foliolint scan . --fail-under 75
+foliolint scan . --format markdown --output report.md
+foliolint init
 ```
 
 <details open>
@@ -73,6 +75,8 @@ foliolint scan-url https://github.com/OWNER/REPO --format json
 ```
 
 `scan PATH` arbeitet lokal und braucht keinen Internetzugang. `scan-url URL` lädt ein öffentliches GitHub-Repository temporär als ZIP herunter, prüft es lokal und löscht die temporären Dateien danach wieder.
+
+Mit `--output PATH` kannst du einen Text-, JSON- oder Markdown-Report als Datei speichern. `foliolint init` erstellt eine kommentierte Beispielkonfiguration und überschreibt keine bestehende `.foliolint.toml`.
 
 </details>
 
@@ -109,6 +113,7 @@ python -m ruff format --check .
 - Der Score ist ein Showcase-Readiness-Score, kein objektiver Qualitätswert.
 - Die Secret-Hinweise sind einfache Heuristiken und ersetzen keinen professionellen Secret-Scan.
 - Das Tool bearbeitet README oder Lizenz nicht automatisch.
+- Häufige Projekttypen wie Python, Node, React, Vite und statische Websites werden grob erkannt.
 
 ## Tech-Stack
 

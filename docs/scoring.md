@@ -26,7 +26,7 @@ Status bands:
 
 Strict mode keeps the same categories but deducts extra points for incomplete README hints, missing GitHub Actions in the test category and repository hygiene warnings. It is meant for projects that should be easier to review publicly.
 
-Project type can adjust category weight when configured in `.foliolint.toml`.
+Project type can adjust category weight when configured in `.foliolint.toml`. If it is not configured, FolioLint may infer a simple type from common project files. An explicit `project.type` setting takes precedence.
 
 | Project type | Adjustment |
 | --- | --- |

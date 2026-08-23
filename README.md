@@ -106,9 +106,13 @@ foliolint scan . --format markdown
 foliolint scan . --strict
 foliolint scan . --fail-under 75
 foliolint scan . --details
+foliolint scan . --format markdown --output report.md
+foliolint init
 ```
 
 The dot in `foliolint scan .` means "scan the folder I am currently in". To scan a different local project, replace the dot with that project's folder path. Paths with spaces should be wrapped in quotes.
+
+Use `--output PATH` to save text, JSON or Markdown output to a file. `foliolint init` creates a commented `.foliolint.toml` example and refuses to overwrite an existing configuration.
 
 <details>
 <summary>Local path examples</summary>
@@ -299,6 +303,8 @@ These runs helped improve noisy warnings around generated folders, dependency fo
 - Improve wording based on public feedback
 - Add more project-type-aware checks
 - Add better false-positive handling
+- Detect common Python, Node, React, Vite and static web project types
+- Export reports directly to files and provide a starter configuration
 - Add optional CI examples
 - Keep the MVP local and rule-based
 
