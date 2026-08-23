@@ -544,6 +544,7 @@ def check_metadata(path: Path, config: ShowcaseConfig) -> CheckResult:
     vite_files = list(path.glob("vite.config.*"))
     workflow_details = _github_actions_details(path)
     workflows = bool(workflow_details["files"])
+    project_type, type_evidence = detect_project_type(path)
     found = {
         "pyproject.toml": (path / "pyproject.toml").exists(),
         "requirements.txt": (path / "requirements.txt").exists(),
@@ -551,6 +552,8 @@ def check_metadata(path: Path, config: ShowcaseConfig) -> CheckResult:
         "vite.config": bool(vite_files),
         ".github/workflows": workflows,
         "workflow_files": workflow_details["files"],
+        "project_type": project_type,
+        "project_type_evidence": type_evidence,
     }
     points = 0
     if found["pyproject.toml"]:
@@ -560,7 +563,10 @@ def check_metadata(path: Path, config: ShowcaseConfig) -> CheckResult:
             points += 1
     points = min(points, 5)
     status = "ok" if points > 0 else "warning"
-    message = "Project metadata found." if points > 0 else "No common project metadata found."
+    if project_type:
+        message = f"{project_type} project metadata found."
+    else:
+        message = "Project metadata found." if points > 0 else "No common project metadata found."
     recommendations = (
         []
         if points > 0
@@ -573,9 +579,67 @@ def check_metadata(path: Path, config: ShowcaseConfig) -> CheckResult:
         points=points,
         max_points=5,
         details=found,
-        explanation=f"Metadata gets {points}/5 from common project files and workflow metadata.",
+        explanation=(
+            f"Metadata gets {points}/5 from common project files and workflow metadata. "
+            f"Detected project type: {project_type or 'unknown'}."
+        ),
         recommendations=recommendations,
     )
+
+
+def detect_project_type(path: Path) -> tuple[str | None, list[str]]:
+    """Return a simple project type and the files that support the detection."""
+    evidence: list[str] = []
+    package_path = path / "package.json"
+    package_name = ""
+    package_scripts: dict[str, object] = {}
+    if package_path.exists():
+        evidence.append("package.json")
+        try:
+            package = json.loads(package_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            package = {}
+        if isinstance(package, dict):
+            package_name = " ".join(
+                str(value) for value in package.get("dependencies", {}) if isinstance(value, str)
+            ).lower()
+            package_name += (
+                " "
+                + " ".join(
+                    str(value)
+                    for value in package.get("devDependencies", {})
+                    if isinstance(value, str)
+                ).lower()
+            )
+            package_scripts = package.get("scripts", {})
+            if not isinstance(package_scripts, dict):
+                package_scripts = {}
+
+    vite_files = list(path.glob("vite.config.*"))
+    has_react = (
+        "react" in package_name or any(path.glob("*.jsx")) or any((path / "src").glob("*.jsx"))
+    )
+    if vite_files:
+        evidence.append(vite_files[0].name)
+        if has_react:
+            return "react", evidence
+        return "vite", evidence
+    if has_react:
+        return "react", evidence
+    if package_path.exists():
+        if package_scripts:
+            evidence.append("package.json scripts")
+        return "node", evidence
+    if (path / "pyproject.toml").exists():
+        evidence.append("pyproject.toml")
+        return "python", evidence
+    if (path / "requirements.txt").exists():
+        evidence.append("requirements.txt")
+        return "python", evidence
+    if list(path.glob("*.html")):
+        evidence.append("HTML entrypoint")
+        return "static-web", evidence
+    return None, evidence
 
 
 def _category_for_id(check_id: str) -> str:
