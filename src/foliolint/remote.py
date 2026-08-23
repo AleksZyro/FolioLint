@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import tempfile
 import urllib.error
 import urllib.request
@@ -76,11 +77,13 @@ def prepare_remote_repository(
 ) -> Iterator[RemoteRepository]:
     repo = parse_github_repo_url(url)
     branches = [branch] if branch else ["main", "master"]
+    for candidate_branch in branches:
+        _validate_branch_name(candidate_branch)
     with tempfile.TemporaryDirectory(prefix="foliolint-remote-") as temp_dir:
         temp_path = Path(temp_dir)
         last_error: RemoteScanError | None = None
-        for candidate_branch in branches:
-            zip_path = temp_path / f"{repo.owner}-{repo.name}-{candidate_branch}.zip"
+        for branch_index, candidate_branch in enumerate(branches):
+            zip_path = temp_path / f"archive-{branch_index}.zip"
             try:
                 download_zip(
                     repo.zip_url(candidate_branch),
@@ -110,6 +113,23 @@ def prepare_remote_repository(
         "FolioLint could not download this repository from the main or master branch. "
         "Check that the repository is public, or pass the branch name with --branch."
     ) from last_error
+
+
+def _validate_branch_name(branch: str) -> None:
+    if (
+        not branch
+        or branch in {".", ".."}
+        or "\\" in branch
+        or "//" in branch
+        or ".." in branch
+        or branch.startswith("/")
+        or branch.endswith("/")
+        or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch)
+    ):
+        raise RemoteScanError(
+            "FolioLint could not use that branch name. Use a normal GitHub branch name "
+            "such as main or feature/demo."
+        )
 
 
 def download_zip(

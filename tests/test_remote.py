@@ -3,6 +3,7 @@ import zipfile
 from io import BytesIO
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from foliolint import remote
@@ -112,6 +113,26 @@ def test_prepare_remote_repository_uses_explicit_branch(tmp_path: Path, monkeypa
         assert repo.branch == "develop"
 
     assert urls == ["https://github.com/AleksZyro/FolioLint/archive/refs/heads/develop.zip"]
+
+
+def test_prepare_remote_repository_rejects_path_traversal_branch(monkeypatch) -> None:
+    called = False
+
+    def fake_download_zip(url: str, destination: Path, *, max_download_mb: int) -> None:
+        nonlocal called
+        del url, destination, max_download_mb
+        called = True
+
+    monkeypatch.setattr(remote, "download_zip", fake_download_zip)
+
+    with pytest.raises(RemoteScanError, match="normal GitHub branch name"):
+        with prepare_remote_repository(
+            "https://github.com/AleksZyro/FolioLint",
+            branch="..\\outside",
+        ):
+            pass
+
+    assert called is False
 
 
 def test_prepare_remote_repository_keeps_download_limit_error(monkeypatch) -> None:
