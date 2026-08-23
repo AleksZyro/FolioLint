@@ -17,3 +17,5 @@ FolioLint is intentionally small, local and rule-based.
 - ZIP downloads are not full Git clones, so Git-aware hygiene checks are less precise for `scan-url` than for local Git repositories.
 - Project type detection is intentionally conservative. It uses common files such as `pyproject.toml`, `package.json`, `vite.config.*` and HTML entrypoints; it does not understand every custom framework or build setup.
 - Report export writes the generated result to a local file. FolioLint does not upload the report anywhere or modify the scanned repository.
+- Baselines compare the stored score and category results only. They do not prove that the code or documentation improved in a meaningful way.
+- The GitHub Actions example installs FolioLint from the configured package source. CI therefore needs internet access even though local `scan PATH` does not.

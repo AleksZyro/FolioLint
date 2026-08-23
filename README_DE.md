@@ -64,6 +64,7 @@ foliolint scan . --format markdown
 foliolint scan . --fail-under 75
 foliolint scan . --format markdown --output report.md
 foliolint init
+foliolint scan . --format html --output report.html
 ```
 
 <details open>
@@ -76,7 +77,16 @@ foliolint scan-url https://github.com/OWNER/REPO --format json
 
 `scan PATH` arbeitet lokal und braucht keinen Internetzugang. `scan-url URL` lädt ein öffentliches GitHub-Repository temporär als ZIP herunter, prüft es lokal und löscht die temporären Dateien danach wieder.
 
-Mit `--output PATH` kannst du einen Text-, JSON- oder Markdown-Report als Datei speichern. `foliolint init` erstellt eine kommentierte Beispielkonfiguration und überschreibt keine bestehende `.foliolint.toml`.
+Mit `--output PATH` kannst du einen Text-, JSON-, Markdown- oder HTML-Report als Datei speichern. `foliolint init` erstellt eine kommentierte Beispielkonfiguration und überschreibt keine bestehende `.foliolint.toml`.
+
+Mit HTML-Reports kannst du das Ergebnis lokal im Browser öffnen. Die Datei wird nicht hochgeladen.
+
+Für einen Vergleich über die Zeit:
+
+```text
+foliolint scan . --save-baseline .foliolint-baseline.json
+foliolint scan . --compare-baseline .foliolint-baseline.json --format markdown
+```
 
 </details>
 
@@ -122,6 +132,10 @@ python -m ruff format --check .
 - Rich
 - pytest
 - Ruff
+
+## GitHub Actions
+
+Eine fertige Workflow-Vorlage steht unter [docs/examples/foliolint.yml](docs/examples/foliolint.yml). Kopiere sie in deinem Repository nach `.github/workflows/foliolint.yml`, damit FolioLint bei Pushes und Pull Requests läuft.
 
 <details>
 <summary>Repository-Metadaten Vorschlag</summary>

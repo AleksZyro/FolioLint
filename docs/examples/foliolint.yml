@@ -1,0 +1,31 @@
+name: FolioLint showcase check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  showcase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: "3.11"
+
+      - name: Install FolioLint
+        run: python -m pip install "git+https://github.com/AleksZyro/FolioLint.git"
+
+      - name: Run FolioLint
+        run: foliolint scan . --format markdown --output foliolint-report.md --fail-under 75
+
+      - name: Add report to job summary
+        if: always()
+        run: Get-Content foliolint-report.md >> $env:GITHUB_STEP_SUMMARY
+        shell: pwsh

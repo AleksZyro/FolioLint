@@ -108,11 +108,21 @@ foliolint scan . --fail-under 75
 foliolint scan . --details
 foliolint scan . --format markdown --output report.md
 foliolint init
+foliolint scan . --format html --output report.html
 ```
 
 The dot in `foliolint scan .` means "scan the folder I am currently in". To scan a different local project, replace the dot with that project's folder path. Paths with spaces should be wrapped in quotes.
 
-Use `--output PATH` to save text, JSON or Markdown output to a file. `foliolint init` creates a commented `.foliolint.toml` example and refuses to overwrite an existing configuration.
+Use `--output PATH` to save text, JSON, Markdown or HTML output to a file. `foliolint init` creates a commented `.foliolint.toml` example and refuses to overwrite an existing configuration.
+
+HTML reports are useful for opening a local result in a browser or attaching it to a review. They are generated locally and are not uploaded anywhere.
+
+Save and compare a baseline when you want to track whether warnings change over time:
+
+```text
+foliolint scan . --save-baseline .foliolint-baseline.json
+foliolint scan . --compare-baseline .foliolint-baseline.json --format markdown
+```
 
 <details>
 <summary>Local path examples</summary>
@@ -267,6 +277,10 @@ Supported project types are optional and intentionally simple:
 Example configs are available in [docs/examples](docs/examples).
 
 </details>
+
+## GitHub Actions
+
+For a CI check, copy [docs/examples/foliolint.yml](docs/examples/foliolint.yml) to `.github/workflows/foliolint.yml` in your repository. It runs FolioLint with a minimum score of 75 and adds the Markdown report to the GitHub Actions summary.
 
 ## Limits
 
