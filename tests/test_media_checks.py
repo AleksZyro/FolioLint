@@ -45,3 +45,27 @@ def test_demo_check_detects_cli_scan_command(tmp_path: Path) -> None:
 
     assert result.status == "ok"
     assert result.details["local_demo"] is True
+
+
+def test_demo_check_does_not_count_python_test_command(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "Run the test suite with `python -m pytest`.\n",
+        encoding="utf-8",
+    )
+
+    result = check_demo(tmp_path, ShowcaseConfig())
+
+    assert result.status == "warning"
+    assert result.details["local_demo"] is False
+
+
+def test_demo_check_detects_python_module_start_command(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "Start the application with `python -m my_app`.\n",
+        encoding="utf-8",
+    )
+
+    result = check_demo(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.details["local_demo"] is True
