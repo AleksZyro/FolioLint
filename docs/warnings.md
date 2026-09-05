@@ -33,6 +33,10 @@ A hosted demo is not always needed. A warning can be reasonable to ignore when:
 - Running a demo would require private services or paid resources.
 - The README contains enough commands to reproduce the behaviour locally.
 
+Test commands such as `pytest`, `python -m pytest`, `npm test` and similar
+commands are not considered a demo. They document verification, but they do
+not show how to start or use the project.
+
 For local tools, a short command such as `foliolint scan . --no-score` is often enough.
 
 ## Hygiene Warnings

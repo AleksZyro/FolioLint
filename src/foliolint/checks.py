@@ -59,6 +59,8 @@ TEST_FILE_SUFFIXES = (
     ".spec.ts",
     ".spec.tsx",
 )
+PYTHON_MODULE_RE = re.compile(r"\bpython(?:3(?:\.\d+)?)?\s+-m\s+(?P<module>[A-Za-z_][\w.]*)")
+NON_DEMO_PYTHON_MODULES = {"coverage", "pip", "pytest", "unittest"}
 SECRET_ASSIGNMENT_RE = re.compile(
     (
         r"(?<![-\w])(?P<name>(?:[A-Z0-9]+_){0,4}"
@@ -368,9 +370,13 @@ def check_demo(path: Path, config: ShowcaseConfig) -> CheckResult:
             "flask run",
             "typer",
             "foliolint scan",
-            "python -m",
         ],
     )
+    python_module_demo = any(
+        match.group("module").split(".", maxsplit=1)[0] not in NON_DEMO_PYTHON_MODULES
+        for match in PYTHON_MODULE_RE.finditer(readme_text)
+    )
+    local_demo = local_demo or python_module_demo
     if hosted_demo or local_demo:
         message = "Hosted demo link found." if hosted_demo else "Local start instructions found."
         return CheckResult(
