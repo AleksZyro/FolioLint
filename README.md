@@ -39,7 +39,7 @@ This repository is relevant for searches such as:
 
 - No AI module
 - No API key
-- No internet access needed
+- Local `scan PATH` runs do not need internet access
 - No automatic README or license editing
 - No claim that a project is good or bad
 - No replacement for real secret scanning
@@ -258,7 +258,6 @@ large_file_mb = 10
 
 [project]
 type = "local-app"
-status = "prototype"
 ```
 
 Ignored paths are skipped by file-based checks. Ignored checks appear as ignored and do not affect the score.

@@ -17,7 +17,6 @@ large_file_mb = 5
 
 [project]
 # type = "web-app"
-# status = "prototype"
 """
 
 
@@ -35,7 +34,6 @@ class IgnoreConfig:
 @dataclass(frozen=True)
 class ProjectConfig:
     type: str | None = None
-    status: str | None = None
 
 
 @dataclass(frozen=True)
@@ -74,11 +72,7 @@ def _read_thresholds(raw: dict[str, Any]) -> Thresholds:
 
 def _read_project(raw: dict[str, Any]) -> ProjectConfig:
     project_type = raw.get("type")
-    status = raw.get("status")
-    return ProjectConfig(
-        type=project_type if isinstance(project_type, str) else None,
-        status=status if isinstance(status, str) else None,
-    )
+    return ProjectConfig(type=project_type if isinstance(project_type, str) else None)
 
 
 def _string_list(value: Any) -> list[str]:

@@ -28,7 +28,6 @@ large_file_mb = 10
 
 [project]
 type = "local-app"
-status = "prototype"
 """,
         encoding="utf-8",
     )
@@ -39,7 +38,6 @@ status = "prototype"
     assert config.ignore.checks == ["demo-link"]
     assert config.thresholds.large_file_mb == 10
     assert config.project.type == "local-app"
-    assert config.project.status == "prototype"
 
 
 def test_config_ignored_paths_affect_hygiene(tmp_path: Path) -> None:
@@ -68,7 +66,9 @@ def test_init_creates_example_config_without_overwriting(tmp_path: Path) -> None
     assert result.exit_code == 0
     config_path = tmp_path / CONFIG_FILE
     assert config_path.exists()
-    assert "[thresholds]" in config_path.read_text(encoding="utf-8")
+    config_text = config_path.read_text(encoding="utf-8")
+    assert "[thresholds]" in config_text
+    assert "status" not in config_text
 
     second = runner.invoke(app, ["init", str(tmp_path)])
 
