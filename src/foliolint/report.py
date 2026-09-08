@@ -190,6 +190,13 @@ def _format_baseline(baseline: dict) -> str:
     lines = [
         f"Score: {baseline.get('baseline_score')} -> {baseline.get('current_score')} ({delta_text})"
     ]
+    status = baseline.get("identity_status")
+    if status == "legacy_unverified":
+        lines.append("Repository identity: not verified (legacy baseline)")
+    elif status == "unverified":
+        lines.append("Repository identity: not verified")
+    elif status == "matched":
+        lines.append("Repository identity: matched")
     for change in baseline.get("changed_checks", []):
         lines.append(f"- {change.get('category')}: {change.get('change')}")
     if len(lines) == 1:

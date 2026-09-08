@@ -88,6 +88,12 @@ foliolint scan . --save-baseline .foliolint-baseline.json
 foliolint scan . --compare-baseline .foliolint-baseline.json --format markdown
 ```
 
+Neue Baselines enthalten eine Schemaversion und die Repository-Herkunft. Lokale Git-Scans speichern
+wenn verfügbar die normalisierte `origin`-Remote; `scan-url` speichert die öffentliche Quell-URL und
+den Branch. FolioLint verweigert einen Vergleich, wenn beide Identitäten vorhanden sind und nicht
+übereinstimmen. Ältere Baselines und lokale Ordner ohne Git-Metadaten bleiben vergleichbar, werden
+aber als nicht verifiziert gekennzeichnet.
+
 </details>
 
 ## Beispiel

@@ -18,5 +18,6 @@ FolioLint is intentionally small, local and rule-based.
 - Project type detection is intentionally conservative. It uses common files such as `pyproject.toml`, `package.json`, `vite.config.*` and HTML entrypoints; it does not understand every custom framework or build setup.
 - Report export writes the generated result to a local file. FolioLint does not upload the report anywhere or modify the scanned repository.
 - Baselines compare the stored score and category results only. They do not prove that the code or documentation improved in a meaningful way.
+- New baselines store a schema version and repository provenance when it is available. FolioLint refuses comparisons where both identities differ, but it cannot verify identity for legacy baselines or local folders without Git metadata.
 - The GitHub Actions example installs FolioLint from the configured package source. CI therefore needs internet access even though local `scan PATH` does not.
 - The example pins the FolioLint commit and direct package versions. A fully hash-locked dependency mirror is outside the current MVP scope.
