@@ -7,7 +7,7 @@ import pytest
 from typer.testing import CliRunner
 
 from foliolint.baseline import compare_baseline, load_baseline, save_baseline
-from foliolint.cli import app
+from foliolint.cli import _baseline_text, app
 from foliolint.models import ScanReport
 
 
@@ -86,6 +86,21 @@ def test_local_folder_without_git_metadata_is_not_claimed_as_matched(tmp_path: P
 
     assert "provenance" not in load_baseline(baseline_path)
     assert comparison["identity_status"] == "unverified"
+
+
+def test_text_baseline_output_keeps_unverified_status_without_category_changes() -> None:
+    text = _baseline_text(
+        {
+            "baseline_score": 50,
+            "current_score": 50,
+            "score_delta": 0,
+            "identity_status": "unverified",
+            "changed_checks": [],
+        }
+    )
+
+    assert "Repository identity: not verified" in text
+    assert "No category changes" in text
 
 
 def _report(path: Path, *, remote: dict[str, str] | None = None) -> ScanReport:

@@ -362,7 +362,9 @@ def _baseline_text(baseline: dict) -> str:
     elif status == "matched":
         lines.append("Repository identity: matched")
     lines.extend(f"- {item['category']}: {item['change']}" for item in changes)
-    return "\n".join(lines) if changes else lines[0] + "\n- No category changes"
+    if not changes:
+        lines.append("- No category changes")
+    return "\n".join(lines)
 
 
 def _baseline_markdown(baseline: dict | None) -> str:
