@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import subprocess
+import zipfile
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+from foliolint import remote
 from foliolint.baseline import compare_baseline, load_baseline, save_baseline
 from foliolint.cli import _baseline_text, app
 from foliolint.models import ScanReport
@@ -46,6 +49,67 @@ def test_mismatched_local_git_repositories_are_refused_by_cli(tmp_path: Path) ->
 
     assert result.exit_code == 2
     assert "different repository" in result.stderr
+
+
+def test_scan_url_baseline_flow_checks_repository_identity(tmp_path: Path, monkeypatch) -> None:
+    baseline_path = tmp_path / "baseline.json"
+
+    def fake_download_zip(url: str, destination: Path, *, max_download_mb: int) -> None:
+        del max_download_mb
+        branch = url.rsplit("/", 1)[-1].removesuffix(".zip")
+        with zipfile.ZipFile(destination, "w") as archive:
+            archive.writestr(f"example-{branch}/README.md", "# Example\n")
+
+    monkeypatch.setattr(remote, "download_zip", fake_download_zip)
+    runner = CliRunner()
+    repository_url = "https://github.com/owner/example"
+
+    saved = runner.invoke(
+        app,
+        [
+            "scan-url",
+            repository_url,
+            "--branch",
+            "main",
+            "--save-baseline",
+            str(baseline_path),
+        ],
+    )
+    assert saved.exit_code == 0
+    assert load_baseline(baseline_path)["provenance"] == {
+        "source_url": repository_url,
+        "branch": "main",
+    }
+
+    matched = runner.invoke(
+        app,
+        [
+            "scan-url",
+            repository_url,
+            "--branch",
+            "main",
+            "--compare-baseline",
+            str(baseline_path),
+            "--format",
+            "json",
+        ],
+    )
+    assert matched.exit_code == 0
+    assert json.loads(matched.stdout)["baseline"]["identity_status"] == "matched"
+
+    mismatched = runner.invoke(
+        app,
+        [
+            "scan-url",
+            repository_url,
+            "--branch",
+            "develop",
+            "--compare-baseline",
+            str(baseline_path),
+        ],
+    )
+    assert mismatched.exit_code == 2
+    assert "different repository or branch" in mismatched.stderr
 
 
 @pytest.mark.parametrize(
