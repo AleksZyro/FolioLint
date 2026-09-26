@@ -23,7 +23,7 @@ jobs:
 
       - name: Install FolioLint
         # Pin the tool source to the reviewed commit. Update deliberately when upgrading FolioLint.
-        run: python -m pip install --no-deps "git+https://github.com/AleksZyro/FolioLint.git@0848d4c6a40baf0e8becbbe369e5f8f1cc5dc1ac"
+        run: python -m pip install --no-deps "git+https://github.com/AleksZyro/FolioLint.git@8f28829"
 
       - name: Install pinned runtime dependencies
         run: python -m pip install "rich==15.0.0" "typer==0.27.0"
