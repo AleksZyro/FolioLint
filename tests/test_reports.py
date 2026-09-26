@@ -4,6 +4,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from foliolint.cli import app
+from foliolint.models import CheckResult, ScanReport
+from foliolint.report import render_html_report
 
 
 def test_html_report_contains_checks_and_escapes_values(tmp_path: Path) -> None:
@@ -21,6 +23,26 @@ def test_html_report_contains_checks_and_escapes_values(tmp_path: Path) -> None:
     assert "FolioLint Report" in html
     assert "README" in html
     assert "status-warning" in html
+
+
+def test_html_report_contains_remote_scan_context() -> None:
+    report = ScanReport(
+        path="C:/Temp/repository",
+        checks=[CheckResult("README", "ok", "README found", 25, 25)],
+        recommendations=[],
+        score=100,
+        status="Showcase-ready",
+        remote={
+            "source_url": "https://github.com/example/project",
+            "branch": "main",
+        },
+    )
+
+    html = render_html_report(report)
+
+    assert "https://github.com/example/project" in html
+    assert "branch <code>main</code>" in html
+    assert "Temporary copy: removed after scan" in html
 
 
 def test_baseline_can_be_saved_and_compared(tmp_path: Path) -> None:
