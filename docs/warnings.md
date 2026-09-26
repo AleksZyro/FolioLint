@@ -57,11 +57,22 @@ Before public sharing, check what is actually tracked by git.
 
 ## Project-Type Warnings
 
-Project type detection is based on common filenames and package metadata. A custom project can be detected as `node`, `python` or `static-web` even when its actual workflow is different. Treat the detected type as a hint and set `project.type` in `.foliolint.toml` when the default is not suitable.
+Project type detection is based on common filenames and package metadata. It can recognise
+`python`, `python-cli`, `node`, `node-cli`, `react`, `vite` and `static-web`. A custom project can
+still be detected as the wrong type. Treat the detected type as a hint and set `project.type` in
+`.foliolint.toml` when the default is not suitable. CLI and library-like types reduce the weight
+of media and demo categories because those projects often do not need screenshots or a hosted demo.
+
+The detector does not inspect the complete build or runtime configuration. A `package.json` script
+or a `pyproject.toml` entry point is evidence, not proof of how the project is normally used.
 
 ## Secret-Risk Warnings
 
 The secret-risk check only looks for obvious assignment-style hints in normal project files. It skips common generated and dependency folders to reduce noise.
+
+Comment-only examples such as `# API_KEY = "placeholder"` are ignored. Real assignments are still
+reported even when their value looks fake, because a rule-based check cannot reliably prove that a
+value is harmless. Use `--details` to inspect the file and line before sharing the repository.
 
 A warning can be a false positive when:
 

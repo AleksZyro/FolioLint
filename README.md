@@ -287,6 +287,13 @@ Example configs are available in [docs/examples](docs/examples).
 
 For a CI check, copy [docs/examples/foliolint.yml](docs/examples/foliolint.yml) to `.github/workflows/foliolint.yml` in your repository. It runs FolioLint with a minimum score of 75 and adds the Markdown report to the GitHub Actions summary.
 
+## Manual Checks Against Real Repositories
+
+The automated test suite is offline. When internet access is available, use the optional smoke
+checks in [docs/real-repository-checks.md](docs/real-repository-checks.md) to verify public ZIP
+downloads against real repositories such as FolioLint, PathLab and SortLab. These checks are
+manual and are not required for normal development or CI.
+
 ## Limits
 
 The checks are deterministic heuristics. They cannot understand full project context. README quality, security posture and portfolio value still need human judgement.
@@ -320,12 +327,11 @@ These runs helped improve noisy warnings around generated folders, dependency fo
 ## Roadmap
 
 - Improve wording based on public feedback
-- Add more project-type-aware checks
-- Add better false-positive handling
-- Detect common Python, Node, React, Vite and static web project types
-- Export reports directly to files and provide a starter configuration
-- Add optional CI examples
-- Keep the MVP local and rule-based
+- Add more project-specific checks without turning the score into a quality judgement
+- Make intentional false-positive exclusions easier to configure
+- Expand the offline fixture corpus for README, secret-risk and project-type regressions
+- Improve remote download progress and error messages while keeping the local scan offline
+- Keep the MVP local, rule-based and free of API-key requirements
 
 ## Feedback
 

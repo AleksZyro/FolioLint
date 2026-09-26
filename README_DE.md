@@ -81,6 +81,13 @@ Mit `--output PATH` kannst du einen Text-, JSON-, Markdown- oder HTML-Report als
 
 Mit HTML-Reports kannst du das Ergebnis lokal im Browser öffnen. Die Datei wird nicht hochgeladen.
 
+## Manuelle Checks gegen echte Repositories
+
+Die automatisierte Testsuite braucht kein Internet. Wenn Internetzugang vorhanden ist, kannst du
+die optionalen Smoke-Checks aus [docs/real-repository-checks.md](docs/real-repository-checks.md)
+gegen öffentliche Repositories wie FolioLint, PathLab oder SortLab ausführen. Diese Checks sind
+manuell und gehören bewusst nicht zur normalen CI.
+
 Für einen Vergleich über die Zeit:
 
 ```text
