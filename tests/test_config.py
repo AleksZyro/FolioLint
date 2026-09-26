@@ -88,6 +88,24 @@ def test_project_type_detection_supports_python_and_react(tmp_path: Path) -> Non
     assert detect_project_type(tmp_path)[0] == "react"
 
 
+def test_project_type_detection_identifies_cli_metadata(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\nname = 'demo'\n\n[project.scripts]\ndemo = 'demo:main'\n",
+        encoding="utf-8",
+    )
+
+    assert detect_project_type(tmp_path)[0] == "python-cli"
+
+
+def test_project_type_detection_identifies_node_cli_metadata(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text(
+        '{"name":"demo","bin":{"demo":"cli.js"}}',
+        encoding="utf-8",
+    )
+
+    assert detect_project_type(tmp_path)[0] == "node-cli"
+
+
 def test_cli_output_writes_report_file(tmp_path: Path) -> None:
     runner = CliRunner()
     output_path = tmp_path / "reports" / "scan.md"

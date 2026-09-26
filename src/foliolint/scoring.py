@@ -4,7 +4,15 @@ from dataclasses import replace
 
 from foliolint.models import CheckResult
 
-MEDIA_LIGHT_PROJECT_TYPES = {"cli", "library", "learning-project"}
+MEDIA_LIGHT_PROJECT_TYPES = {
+    "cli",
+    "library",
+    "learning-project",
+    "local-app",
+    "local-tool",
+    "node-cli",
+    "python-cli",
+}
 
 
 def score_status(score: int) -> str:

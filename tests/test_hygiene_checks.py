@@ -126,6 +126,18 @@ permissions:
     assert result.details["matches"] == []
 
 
+def test_secret_check_ignores_comment_only_examples(tmp_path: Path) -> None:
+    (tmp_path / "settings.py").write_text(
+        "# API_KEY = 'documented placeholder'\n// SECRET = 'documented placeholder'\n",
+        encoding="utf-8",
+    )
+
+    result = check_secrets(tmp_path, ShowcaseConfig())
+
+    assert result.status == "ok"
+    assert result.details["matches"] == []
+
+
 def test_tests_check_ignores_empty_github_actions(tmp_path: Path) -> None:
     tests = tmp_path / "tests"
     tests.mkdir()

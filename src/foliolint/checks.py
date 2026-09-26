@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import tomllib
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -77,8 +78,8 @@ WORKFLOW_HINTS = {
 README_HEADINGS = {
     "purpose": ["about", "overview", "description", "purpose", "what is", "ziel", "zweck"],
     "setup": ["installation", "install", "setup", "requirements"],
-    "usage": ["usage", "quick start", "getting started", "run", "start", "nutzung"],
-    "tests": ["tests", "testing", "test"],
+    "usage": ["usage", "quick start", "getting started", "how to run", "nutzung"],
+    "tests": ["tests", "testing", "test suite"],
     "limitations": ["status", "limitations", "limits", "roadmap", "grenzen"],
     "screenshot_or_demo": ["demo", "screenshot", "screenshots", "preview"],
 }
@@ -145,7 +146,11 @@ def check_readme(path: Path, config: ShowcaseConfig) -> CheckResult:
         "description",
         "ziel",
         "zweck",
-        "projekt",
+        "this project",
+        "a tool",
+        "a library",
+        "a cli",
+        "an app",
     ]
     setup_keywords = [
         "setup",
@@ -160,8 +165,7 @@ def check_readme(path: Path, config: ShowcaseConfig) -> CheckResult:
         "usage",
         "quick start",
         "getting started",
-        "run",
-        "start",
+        "how to run",
         "nutzung",
         "benutzung",
     ]
@@ -177,26 +181,23 @@ def check_readme(path: Path, config: ShowcaseConfig) -> CheckResult:
     media_keywords = [
         "screenshot",
         "demo",
-        ".png",
-        ".jpg",
-        ".jpeg",
-        ".gif",
-        ".mp4",
-        ".webm",
-        "![",
     ]
     found = {
         "exists": True,
         "purpose": bool(evidence["purpose"])
-        or _has_any(lowered, purpose_keywords)
-        or len(text.strip()) >= 120,
-        "setup": bool(evidence["setup"]) or _has_any(lowered, setup_keywords),
-        "usage": bool(evidence["usage"]) or _has_any(lowered, usage_keywords),
+        or _has_any_term(lowered, purpose_keywords)
+        or _looks_like_project_description(text),
+        "setup": bool(evidence["setup"]) or _has_any_term(lowered, setup_keywords),
+        "usage": bool(evidence["usage"]) or _has_any_term(lowered, usage_keywords),
         "tests": bool(evidence["tests"])
-        or _has_any(lowered, ["test", "pytest", "unittest", "npm test", "coverage"]),
-        "limitations": bool(evidence["limitations"]) or _has_any(lowered, limitation_keywords),
+        or _has_any_term(
+            lowered,
+            ["tests", "testing", "test suite", "pytest", "unittest", "npm test", "coverage"],
+        ),
+        "limitations": bool(evidence["limitations"]) or _has_any_term(lowered, limitation_keywords),
         "screenshot_or_demo": bool(evidence["screenshot_or_demo"])
-        or _has_any(lowered, media_keywords),
+        or _has_any_term(lowered, media_keywords)
+        or _readme_media_reference(text),
     }
     for key, value in found.items():
         if value and key != "exists" and not evidence[key]:
@@ -357,7 +358,7 @@ def check_demo(path: Path, config: ShowcaseConfig) -> CheckResult:
     hosted_demo = bool(
         re.search(r"https?://[^\s)]+(netlify\.app|vercel\.app|github\.io)", readme_text)
     )
-    local_demo = _has_any(
+    local_demo = _has_any_term(
         readme_text,
         [
             "127.0.0.1",
@@ -633,11 +634,20 @@ def detect_project_type(path: Path) -> tuple[str | None, list[str]]:
     if has_react:
         return "react", evidence
     if package_path.exists():
+        if package.get("bin"):
+            evidence.append("package.json bin")
+            return "node-cli", evidence
         if package_scripts:
             evidence.append("package.json scripts")
         return "node", evidence
-    if (path / "pyproject.toml").exists():
+    pyproject_path = path / "pyproject.toml"
+    if pyproject_path.exists():
         evidence.append("pyproject.toml")
+        pyproject = _read_pyproject(pyproject_path)
+        project = pyproject.get("project", {})
+        if isinstance(project, dict) and isinstance(project.get("scripts"), dict):
+            evidence.append("pyproject.toml project.scripts")
+            return "python-cli", evidence
         return "python", evidence
     if (path / "requirements.txt").exists():
         evidence.append("requirements.txt")
@@ -766,6 +776,34 @@ def _has_any(text: str, needles: list[str]) -> bool:
     return any(needle in text for needle in needles)
 
 
+def _has_any_term(text: str, terms: list[str]) -> bool:
+    return any(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text) for term in terms)
+
+
+def _looks_like_project_description(text: str) -> bool:
+    paragraphs = [
+        paragraph.strip()
+        for paragraph in re.split(r"\n\s*\n", text)
+        if paragraph.strip() and not paragraph.lstrip().startswith("#")
+    ]
+    if not paragraphs:
+        return False
+    first = re.sub(r"[`*_\[\]()]", "", paragraphs[0])
+    return len(first.split()) >= 8 and bool(
+        re.search(r"\b(is|helps|provides|builds|shows|creates)\b", first, re.I)
+    )
+
+
+def _readme_media_reference(text: str) -> bool:
+    return bool(
+        re.search(
+            r"!\[[^\]]*\]\([^)]+\.(?:png|jpe?g|gif|mp4|webm)(?:\?[^)]*)?\)",
+            text,
+            re.IGNORECASE,
+        )
+    )
+
+
 def _readme_evidence(text: str) -> dict[str, list[str]]:
     evidence = {key: [] for key in README_HEADINGS}
     headings = _markdown_headings(text)
@@ -773,7 +811,7 @@ def _readme_evidence(text: str) -> dict[str, list[str]]:
 
     for category, aliases in README_HEADINGS.items():
         for heading in headings:
-            if any(alias in heading for alias in aliases):
+            if any(re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", heading) for alias in aliases):
                 evidence[category].append(f"heading '{heading}'")
                 break
 
@@ -784,10 +822,7 @@ def _readme_evidence(text: str) -> dict[str, list[str]]:
                 evidence[category].append(f"code command '{matched}'")
                 break
 
-    lowered = text.lower()
-    if not evidence["screenshot_or_demo"] and (
-        "![" in lowered or any(extension in lowered for extension in MEDIA_EXTENSIONS)
-    ):
+    if not evidence["screenshot_or_demo"] and _readme_media_reference(text):
         evidence["screenshot_or_demo"].append("README media reference")
 
     return evidence
@@ -902,9 +937,25 @@ def _is_in_skipped_secret_dir(file: Path, root: Path) -> bool:
 def _find_secret_hint(text: str) -> dict[str, int | str] | None:
     private_key_marker = "BEGIN " + "RSA PRIVATE KEY"
     for line_number, line in enumerate(text.splitlines(), start=1):
+        if _is_comment_line(line):
+            continue
         if private_key_marker in line.upper():
             return {"pattern": private_key_marker, "line": line_number}
         match = SECRET_ASSIGNMENT_RE.search(line)
         if match:
             return {"pattern": match.group("name").upper(), "line": line_number}
     return None
+
+
+def _is_comment_line(line: str) -> bool:
+    stripped = line.lstrip()
+    return stripped.startswith(("#", "//", "<!--", ";"))
+
+
+def _read_pyproject(path: Path) -> dict[str, object]:
+    try:
+        with path.open("rb") as file:
+            data = tomllib.load(file)
+    except (OSError, tomllib.TOMLDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}

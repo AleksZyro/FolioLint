@@ -97,3 +97,27 @@ def test_cli_explain_shows_points(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Explanation" in result.stdout
     assert "README" in result.stdout
+
+
+def test_readme_does_not_treat_generic_words_as_sections(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "A short project with the latest release and a testable example.",
+        encoding="utf-8",
+    )
+
+    result = check_readme(tmp_path, ShowcaseConfig())
+
+    assert result.details["usage"] is False
+    assert result.details["tests"] is False
+    assert result.details["screenshot_or_demo"] is False
+
+
+def test_readme_detects_description_without_broad_length_fallback(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "This project provides a small local command line example.",
+        encoding="utf-8",
+    )
+
+    result = check_readme(tmp_path, ShowcaseConfig())
+
+    assert result.details["purpose"] is True
