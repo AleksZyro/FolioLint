@@ -149,6 +149,13 @@ def render_html_report(
             "</tr>"
         )
     recommendations = "".join(f"<li>{escape(item)}</li>" for item in report.recommendations)
+    remote_block = ""
+    if report.remote:
+        remote_block = (
+            f"<p>Remote: <code>{escape(str(report.remote.get('source_url', '')))}</code>"
+            f" on branch <code>{escape(str(report.remote.get('branch', '')))}</code></p>"
+            "<p>Temporary copy: removed after scan</p>"
+        )
     baseline_block = ""
     if baseline is not None:
         baseline_block = (
@@ -175,7 +182,7 @@ li {{ margin:8px 0; }} pre {{ white-space:pre-wrap; background:#171d26; padding:
 </style>
 </head>
 <body><main><h1>FolioLint Report</h1>
-<p>Path: <code>{escape(report.path)}</code></p>{score_block}
+<p>Path: <code>{escape(report.path)}</code></p>{remote_block}{score_block}
 <table><thead><tr><th>Category</th><th>Status</th><th>Points</th><th>Notes</th></tr></thead>
 <tbody>{"".join(rows)}</tbody></table>
 {("<h2>Recommended next steps</h2><ol>" + recommendations + "</ol>") if recommendations else ""}
@@ -235,6 +242,7 @@ def _detail_lines(details: dict) -> list[str]:
         "log_files",
         "ignored_local_paths",
         "workflow_files",
+        "project_type_evidence",
     ]:
         value = details.get(key)
         if isinstance(value, list) and value:
