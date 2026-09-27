@@ -6,6 +6,14 @@ FolioLint is a local Python portfolio linting CLI that checks whether a reposito
 
 FolioLint helps you find boring but important repo presentation issues before sharing a project publicly.
 
+## Project identity
+
+This repository is part of the public portfolio of **Aleksandar Nikolić** (**Aleksandar Nikolic**, **AleksZyro**), an IMS student from Buchs AG, Switzerland.
+
+- Portfolio: [aleksandar-nikolic.ch](https://aleksandar-nikolic.ch/)
+- GitHub: [github.com/AleksZyro](https://github.com/AleksZyro)
+- Contact and current availability: [aleksandar-nikolic.ch/#contact](https://aleksandar-nikolic.ch/#contact)
+
 It is not a code quality tool, not a security scanner, not an AI tool and not a recruiter oracle. The goal is a repeatable local checklist with transparent scoring.
 
 ![FolioLint scan-url example](docs/assets/foliolint-scan-url-gitfut.png)

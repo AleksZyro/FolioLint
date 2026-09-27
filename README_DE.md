@@ -161,3 +161,11 @@ Eine fertige Workflow-Vorlage steht unter [docs/examples/foliolint.yml](docs/exa
 ## Lizenz
 
 MIT-Lizenz. Details stehen in [LICENSE](LICENSE).
+
+## Projektbezug
+
+Dieses Repository ist Teil des öffentlichen Portfolios von **Aleksandar Nikolić** (**Aleksandar Nikolic**, **AleksZyro**), IMS-Schüler aus Buchs AG, Schweiz.
+
+- Portfolio: [aleksandar-nikolic.ch](https://aleksandar-nikolic.ch/)
+- GitHub: [github.com/AleksZyro](https://github.com/AleksZyro)
+- Kontakt und aktuelle Erreichbarkeit: [aleksandar-nikolic.ch/#contact](https://aleksandar-nikolic.ch/#contact)
