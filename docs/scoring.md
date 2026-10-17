@@ -31,18 +31,40 @@ Project type can adjust category weight when configured in `.foliolint.toml`. If
 | Project type | Adjustment |
 | --- | --- |
 | `web-app` | Uses the default weighting. Demo and media checks stay important. |
-| `local-app` | Uses the default weighting. |
+| `local-app`, `local-tool`, `python-cli`, `node-cli` | Media and Demo are capped at 5 points each. |
 | `cli` | Media and Demo are capped at 5 points each. |
 | `library` | Media and Demo are capped at 5 points each. |
 | `learning-project` | Media and Demo are capped at 5 points each. |
 
 The adjustment is intentionally small. It reduces noisy warnings for projects where screenshots or hosted demos are less central, but it does not remove the checks.
 
+`foliolint list-checks` lists each stable configuration ID, category, description and
+whether it contributes points. `foliolint list-checks --format json` also exposes the
+default maximum, `ignorable` flag and `project_type_max_points` mapping. Unknown project
+types keep the default weights. Ignoring a check removes its points and maximum from
+the score denominator; the remaining total is normalized to 100 as before.
+
+Checks live in `src/foliolint/checks/`, with runners registered in `registry.py`.
+`check_metadata.py` defines stable IDs, categories, descriptions, maxima and project-type
+caps. The registry preserves check ordering and the existing category-based report and
+baseline contract. Adding a rule requires metadata, a runner and registry registration;
+CLI discovery reads this registry rather than maintaining its own list.
+
 Use `--explain` to see the points per category. Use `--no-score` when a checklist-style output is better than a number.
 
 Use `--details` to show the files, patterns or workflow hints behind checks. This helps review false positives without making the default output noisy.
 
 `--fail-under N` exits with code 1 when the score is below `N`. This is intended for local CI checks, not as a universal quality gate.
+
+`--format github` uses the same checks and score. It writes workflow warning annotations
+only for concrete existing file locations; general warnings remain plain log text.
+Ignored checks produce neither annotations nor warning messages. Annotation values are
+escaped using the [GitHub workflow command format](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands).
+Remote scans use plain log warnings because their files may not belong to the local
+checkout. This format does not require GitHub access and does not change exit codes.
+
+These are portfolio/showcase heuristics, not code-quality analysis, security scanning,
+AI review or an objective recruiter score.
 
 Exit codes:
 

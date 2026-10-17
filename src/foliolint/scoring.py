@@ -2,17 +2,16 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from foliolint.check_metadata import (
+    HYGIENE,
+    METADATA_BY_CATEGORY,
+    README,
+    TESTS,
+)
+from foliolint.check_metadata import (
+    MEDIA_LIGHT_PROJECT_TYPES as MEDIA_LIGHT_PROJECT_TYPES,
+)
 from foliolint.models import CheckResult
-
-MEDIA_LIGHT_PROJECT_TYPES = {
-    "cli",
-    "library",
-    "learning-project",
-    "local-app",
-    "local-tool",
-    "node-cli",
-    "python-cli",
-}
 
 
 def score_status(score: int) -> str:
@@ -50,16 +49,15 @@ def apply_project_type(checks: list[CheckResult], project_type: str | None) -> l
         return checks
 
     normalized = project_type.strip().lower()
-    if normalized not in MEDIA_LIGHT_PROJECT_TYPES:
-        return checks
-
     adjusted: list[CheckResult] = []
     for check in checks:
-        if check.category not in {"Media", "Demo"}:
+        metadata = METADATA_BY_CATEGORY.get(check.category)
+        cap = metadata.project_type_max_points.get(normalized) if metadata else None
+        if cap is None:
             adjusted.append(check)
             continue
 
-        max_points = min(check.max_points, 5)
+        max_points = min(check.max_points, cap)
         points = min(check.points, max_points)
         details = {**check.details, "project_type_adjustment": normalized}
         explanation = (
@@ -89,10 +87,10 @@ def calculate_score(checks: list[CheckResult]) -> int:
 def _strict_penalty(check: CheckResult) -> int:
     if check.status == "ignored":
         return 0
-    if check.category == "README" and check.points < check.max_points:
+    if check.category == README.category and check.points < check.max_points:
         return 2
-    if check.category == "Tests" and not check.details.get("github_actions"):
+    if check.category == TESTS.category and not check.details.get("github_actions"):
         return 3
-    if check.category == "Hygiene" and check.status == "warning":
+    if check.category == HYGIENE.category and check.status == "warning":
         return 2
     return 0

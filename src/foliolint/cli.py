@@ -10,7 +10,9 @@ from typing import Annotated
 import typer
 
 from foliolint.baseline import compare_baseline, load_baseline, save_baseline
+from foliolint.checks import CHECK_REGISTRY
 from foliolint.config import CONFIG_FILE, DEFAULT_CONFIG
+from foliolint.github_report import render_github_report
 from foliolint.remote import DEFAULT_MAX_DOWNLOAD_MB, RemoteScanError, prepare_remote_repository
 from foliolint.report import render_html_report, render_markdown_report, render_text_report
 from foliolint.scanner import scan_project
@@ -21,6 +23,12 @@ class OutputFormat(StrEnum):
     json = "json"
     markdown = "markdown"
     html = "html"
+    github = "github"
+
+
+class CheckListFormat(StrEnum):
+    text = "text"
+    json = "json"
 
 
 PathArgument = Annotated[
@@ -100,6 +108,33 @@ def main() -> None:
     """FolioLint command group."""
 
 
+@app.command("list-checks")
+def list_checks(
+    output_format: Annotated[
+        CheckListFormat, typer.Option("--format", case_sensitive=False, help="Output format.")
+    ] = CheckListFormat.text,
+) -> None:
+    """List stable check IDs for configuration and their scoring metadata."""
+    checks = [check.metadata for check in CHECK_REGISTRY]
+    if output_format == CheckListFormat.json:
+        typer.echo(json.dumps([check.to_dict() for check in checks], indent=2))
+        return
+    from rich.console import Console
+    from rich.table import Table
+
+    table = Table(title="FolioLint checks")
+    for column in ("Check ID", "Category", "Description", "Scored (max)"):
+        table.add_column(column)
+    for check in checks:
+        table.add_row(
+            check.id,
+            check.category,
+            check.description,
+            f"yes ({check.max_points})" if check.scored else "no",
+        )
+    Console().print(table)
+
+
 @app.command()
 def scan(
     path: PathArgument,
@@ -120,35 +155,12 @@ def scan(
 
     report = scan_project(path, include_score=not no_score, strict=strict)
     baseline = _handle_baseline(report, save_baseline_path, compare_baseline_path)
-    if output_format == OutputFormat.json:
-        content = json.dumps(
-            _report_data(report, not no_score, explain, details, baseline), indent=2, sort_keys=True
-        )
-        _emit(content, output)
-        _exit_if_under_threshold(report.score, fail_under)
-        return
-    if output_format == OutputFormat.markdown:
-        _emit(
-            render_markdown_report(report, include_score=not no_score, details=details)
-            + _baseline_markdown(baseline),
-            output,
-        )
-        _exit_if_under_threshold(report.score, fail_under)
-        return
-    if output_format == OutputFormat.html:
-        _emit(
-            render_html_report(
-                report, include_score=not no_score, details=details, baseline=baseline
-            ),
-            output,
-        )
-        _exit_if_under_threshold(report.score, fail_under)
-        return
-    _emit_text_report(
+    _render_report(
         report,
         include_score=not no_score,
         explain=explain,
         details=details,
+        output_format=output_format,
         output=output,
         baseline=baseline,
     )
@@ -217,6 +229,9 @@ def _render_report(
     output: Path | None,
     baseline: dict | None,
 ) -> None:
+    if output_format == OutputFormat.github:
+        _emit(render_github_report(report, include_score=include_score), output)
+        return
     if output_format == OutputFormat.json:
         content = json.dumps(
             _report_data(report, include_score, explain, details, baseline),

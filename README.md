@@ -111,6 +111,9 @@ The `foliolint` commands are the same on Windows, macOS and Linux:
 foliolint scan .
 foliolint scan . --format json
 foliolint scan . --format markdown
+foliolint scan . --format github
+foliolint list-checks
+foliolint list-checks --format json
 foliolint scan . --strict
 foliolint scan . --fail-under 75
 foliolint scan . --details
@@ -122,6 +125,10 @@ foliolint scan . --format html --output report.html
 The dot in `foliolint scan .` means "scan the folder I am currently in". To scan a different local project, replace the dot with that project's folder path. Paths with spaces should be wrapped in quotes.
 
 Use `--output PATH` to save text, JSON, Markdown or HTML output to a file. `foliolint init` creates a commented `.foliolint.toml` example and refuses to overwrite an existing configuration.
+
+Use `foliolint list-checks` to discover stable check IDs, categories, descriptions and
+scoring relevance before configuring `[ignore].checks`. Its JSON format also includes
+maximum points, whether each check is ignorable and project-type scoring caps.
 
 HTML reports are useful for opening a local result in a browser or attaching it to a review. They are generated locally and are not uploaded anywhere.
 
@@ -282,7 +289,7 @@ Ignored paths are skipped by file-based checks. Ignored checks appear as ignored
 Supported project types are optional and intentionally simple:
 
 - `web-app`: default weighting, demos and screenshots usually matter.
-- `local-app`: default weighting.
+- `local-app`, `local-tool`, `python-cli`, `node-cli`: screenshots and demos count less.
 - `cli`: screenshots and demos count less.
 - `library`: screenshots and demos count less.
 - `learning-project`: screenshots and demos count less.
@@ -294,6 +301,18 @@ Example configs are available in [docs/examples](docs/examples).
 ## GitHub Actions
 
 For a CI check, copy [docs/examples/foliolint.yml](docs/examples/foliolint.yml) to `.github/workflows/foliolint.yml` in your repository. It runs FolioLint with a minimum score of 75 and adds the Markdown report to the GitHub Actions summary.
+
+`foliolint scan . --format github --fail-under 75` emits GitHub workflow warning
+annotations for existing files with concrete evidence (for example an incomplete README
+or a secret risk hint with a line number). Warnings without a file location remain plain
+log messages. Ignored checks produce no warnings. `--output PATH` can save this format too.
+Use the command on the repository checked out by the workflow; `scan-url --format github`
+keeps remote warnings as plain log messages to avoid annotating an unrelated local checkout.
+The output is generated locally and needs no GitHub token or API access. `--fail-under`
+controls the exit code independently of annotations; a warning alone does not fail a job.
+
+FolioLint measures portfolio/showcase readiness. It is not a code-quality analyzer,
+security scanner, AI reviewer or objective recruiter score.
 
 ## Manual Checks Against Real Repositories
 
