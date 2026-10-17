@@ -23,15 +23,24 @@ jobs:
 
       - name: Install FolioLint
         # Pin the tool source to the reviewed commit. Update deliberately when upgrading FolioLint.
-        run: python -m pip install --no-deps "git+https://github.com/AleksZyro/FolioLint.git@8f28829"
+        run: python -m pip install --no-deps "git+https://github.com/AleksZyro/FolioLint.git@03487f3febfa982fe512c6f1c9d6704819f850b1"
 
       - name: Install pinned runtime dependencies
         run: python -m pip install "rich==15.0.0" "typer==0.27.0"
 
-      - name: Run FolioLint
-        run: foliolint scan . --format markdown --output foliolint-report.md --fail-under 75
+      - name: Save Markdown report
+        # Create the summary before applying the score threshold.
+        run: foliolint scan . --format markdown --output foliolint-report.md
+
+      - name: Annotate concrete warnings and check score
+        # File annotations are emitted only when a check has concrete file evidence.
+        # General warnings remain log text. The threshold determines job failure.
+        run: foliolint scan . --format github --fail-under 75
 
       - name: Add report to job summary
         if: always()
-        run: Get-Content foliolint-report.md >> $env:GITHUB_STEP_SUMMARY
+        run: |
+          if (Test-Path foliolint-report.md) {
+            Get-Content foliolint-report.md >> $env:GITHUB_STEP_SUMMARY
+          }
         shell: pwsh
