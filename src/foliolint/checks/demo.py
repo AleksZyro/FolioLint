@@ -35,30 +35,28 @@ def check_demo(path: Path, config: ShowcaseConfig) -> CheckResult:
         for match in PYTHON_MODULE_RE.finditer(readme_text)
     )
     local_demo = local_demo or python_module_demo
-    if hosted_demo or local_demo:
+    found = hosted_demo or local_demo
+    if found:
         message = "Hosted demo link found." if hosted_demo else "Local start instructions found."
-        return CheckResult(
-            category=DEMO.category,
-            status="ok",
-            message=message,
-            points=10,
-            max_points=DEMO.max_points,
-            details={"hosted_demo": hosted_demo, "local_demo": local_demo},
-            explanation="Demo gets 10/10 because hosted or local demo instructions were found.",
+        explanation = "Demo gets 10/10 because hosted or local demo instructions were found."
+        recommendations = []
+    else:
+        message = "No demo link or local start path found."
+        explanation = (
+            "Demo gets 0/10 because README.md has no hosted demo link or local start instruction."
         )
+        recommendations = [
+            "Document a hosted demo link or a local start command when the project supports it."
+        ]
     return CheckResult(
         category=DEMO.category,
-        status="warning",
-        message="No demo link or local start path found.",
-        points=0,
+        status="ok" if found else "warning",
+        message=message,
+        points=DEMO.max_points if found else 0,
         max_points=DEMO.max_points,
-        details={"hosted_demo": False, "local_demo": False},
-        explanation=(
-            "Demo gets 0/10 because README.md has no hosted demo link or local start instruction."
-        ),
-        recommendations=[
-            "Document a hosted demo link or a local start command when the project supports it."
-        ],
+        details={"hosted_demo": hosted_demo, "local_demo": local_demo},
+        explanation=explanation,
+        recommendations=recommendations,
     )
 
 

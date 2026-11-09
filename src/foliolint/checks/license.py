@@ -9,25 +9,25 @@ from foliolint.models import CheckResult
 
 def check_license(path: Path, config: ShowcaseConfig) -> CheckResult:
     del config
-    names = {child.name.upper() for child in path.iterdir() if child.is_file()}
-    found = any(name in names for name in {"LICENSE", "LICENCE", "COPYING"})
+    found = any(
+        child.name.upper() in {"LICENSE", "LICENCE", "COPYING"} and child.is_file()
+        for child in path.iterdir()
+    )
     if found:
-        return CheckResult(
-            category=LICENSE.category,
-            status="ok",
-            message="License file found.",
-            points=10,
-            max_points=LICENSE.max_points,
-            details={"found": True},
-            explanation="License gets 10/10 because LICENSE, LICENCE or COPYING exists.",
-        )
+        message = "License file found."
+        explanation = "License gets 10/10 because LICENSE, LICENCE or COPYING exists."
+    else:
+        message = "No LICENSE, LICENCE or COPYING file found."
+        explanation = "License gets 0/10 because no license file was found."
     return CheckResult(
         category=LICENSE.category,
-        status="warning",
-        message="No LICENSE, LICENCE or COPYING file found.",
-        points=0,
+        status="ok" if found else "warning",
+        message=message,
+        points=LICENSE.max_points if found else 0,
         max_points=LICENSE.max_points,
-        details={"found": False},
-        explanation="License gets 0/10 because no license file was found.",
-        recommendations=["Add or document the license decision before sharing publicly."],
+        details={"found": found},
+        explanation=explanation,
+        recommendations=[]
+        if found
+        else ["Add or document the license decision before sharing publicly."],
     )

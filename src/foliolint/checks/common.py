@@ -59,10 +59,6 @@ def _read_text(path: Path) -> str:
         return ""
 
 
-def _has_any(text: str, needles: list[str]) -> bool:
-    return any(needle in text for needle in needles)
-
-
 def _has_any_term(text: str, terms: list[str]) -> bool:
     return any(re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text) for term in terms)
 

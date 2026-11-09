@@ -14,53 +14,40 @@ def check_secrets(path: Path, config: ShowcaseConfig) -> CheckResult:
     for file in _iter_files(path, config, skip_dirs=SECRET_SCAN_SKIP_DIRS):
         if not _should_scan_text(file):
             continue
-        text = _read_text(file)
-        if not text:
+        match = _find_secret_hint(_read_text(file))
+        if match is None:
             continue
-        match = _find_secret_hint(text)
-        if match is not None:
-            matches.append(
-                {
-                    "path": file.relative_to(path).as_posix(),
-                    "pattern": match["pattern"],
-                    "line": str(match["line"]),
-                }
-            )
-            if len(matches) == 20:
-                break
+        pattern, line = match
+        matches.append(
+            {"path": file.relative_to(path).as_posix(), "pattern": pattern, "line": str(line)}
+        )
+        if len(matches) == 20:
+            break
 
     if matches:
-        return CheckResult(
-            category=SECRETS.category,
-            status="warning",
-            message="Obvious secret risk hints found.",
-            points=0,
-            max_points=SECRETS.max_points,
-            details={"matches": matches},
-            explanation=(
-                "Secrets gets 0/10 because obvious risky strings were found. "
-                "This is not a full security scan."
-            ),
-            recommendations=[
-                "Review obvious secret risk hints before sharing the repository publicly."
-            ],
-        )
+        message = "Obvious secret risk hints found."
+        explanation = "Secrets gets 0/10 because obvious risky strings were found."
+        recommendations = [
+            "Review obvious secret risk hints before sharing the repository publicly."
+        ]
+    else:
+        message = "No obvious secret patterns found."
+        explanation = "Secrets gets 10/10 because no configured risky strings were found."
+        recommendations = []
     return CheckResult(
         category=SECRETS.category,
-        status="ok",
-        message="No obvious secret patterns found.",
-        points=10,
+        status="warning" if matches else "ok",
+        message=message,
+        points=0 if matches else SECRETS.max_points,
         max_points=SECRETS.max_points,
-        details={"matches": []},
-        explanation=(
-            "Secrets gets 10/10 because no configured risky strings were found. "
-            "This is not a full security scan."
-        ),
+        details={"matches": matches},
+        explanation=f"{explanation} This is not a full security scan.",
+        recommendations=recommendations,
     )
 
 
 def _should_scan_text(file: Path) -> bool:
-    if file.suffix.lower() not in TEXT_EXTENSIONS and file.name not in {".env"}:
+    if file.suffix.lower() not in TEXT_EXTENSIONS and file.name != ".env":
         return False
     try:
         return file.stat().st_size <= 1024 * 1024
@@ -68,22 +55,17 @@ def _should_scan_text(file: Path) -> bool:
         return False
 
 
-def _find_secret_hint(text: str) -> dict[str, int | str] | None:
+def _find_secret_hint(text: str) -> tuple[str, int] | None:
     private_key_marker = "BEGIN " + "RSA PRIVATE KEY"
     for line_number, line in enumerate(text.splitlines(), start=1):
-        if _is_comment_line(line):
+        if line.lstrip().startswith(("#", "//", "<!--", ";")):
             continue
         if private_key_marker in line.upper():
-            return {"pattern": private_key_marker, "line": line_number}
+            return private_key_marker, line_number
         match = SECRET_ASSIGNMENT_RE.search(line)
         if match:
-            return {"pattern": match.group("name").upper(), "line": line_number}
+            return match.group("name").upper(), line_number
     return None
-
-
-def _is_comment_line(line: str) -> bool:
-    stripped = line.lstrip()
-    return stripped.startswith(("#", "//", "<!--", ";"))
 
 
 SECRET_SCAN_SKIP_DIRS = GENERATED_DIRS | {".ruff_cache", ".venv", "venv", "site-packages"}

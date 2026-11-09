@@ -3,7 +3,6 @@ from __future__ import annotations
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 CONFIG_FILE = ".foliolint.toml"
 DEFAULT_CONFIG = """# Optional FolioLint configuration
@@ -51,31 +50,22 @@ def load_config(project_path: Path) -> ShowcaseConfig:
     with config_path.open("rb") as file:
         raw = tomllib.load(file)
 
-    ignore = _read_ignore(raw.get("ignore", {}))
-    thresholds = _read_thresholds(raw.get("thresholds", {}))
-    project = _read_project(raw.get("project", {}))
-    return ShowcaseConfig(ignore=ignore, thresholds=thresholds, project=project)
+    ignore = raw.get("ignore", {})
+    large_file_mb = raw.get("thresholds", {}).get("large_file_mb", 5)
+    if not isinstance(large_file_mb, int) or large_file_mb < 1:
+        large_file_mb = 5
+    project_type = raw.get("project", {}).get("type")
+    return ShowcaseConfig(
+        ignore=IgnoreConfig(
+            paths=_string_list(ignore.get("paths")),
+            checks=_string_list(ignore.get("checks")),
+        ),
+        thresholds=Thresholds(large_file_mb=large_file_mb),
+        project=ProjectConfig(type=project_type if isinstance(project_type, str) else None),
+    )
 
 
-def _read_ignore(raw: dict[str, Any]) -> IgnoreConfig:
-    paths = _string_list(raw.get("paths", []))
-    checks = _string_list(raw.get("checks", []))
-    return IgnoreConfig(paths=paths, checks=checks)
-
-
-def _read_thresholds(raw: dict[str, Any]) -> Thresholds:
-    value = raw.get("large_file_mb", 5)
-    if not isinstance(value, int) or value < 1:
-        value = 5
-    return Thresholds(large_file_mb=value)
-
-
-def _read_project(raw: dict[str, Any]) -> ProjectConfig:
-    project_type = raw.get("type")
-    return ProjectConfig(type=project_type if isinstance(project_type, str) else None)
-
-
-def _string_list(value: Any) -> list[str]:
+def _string_list(value: object) -> list[str]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str)]

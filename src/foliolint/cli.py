@@ -154,17 +154,17 @@ def scan(
     _validate_score_options(no_score, fail_under)
 
     report = scan_project(path, include_score=not no_score, strict=strict)
-    baseline = _handle_baseline(report, save_baseline_path, compare_baseline_path)
-    _render_report(
+    _finish_scan(
         report,
         include_score=not no_score,
         explain=explain,
         details=details,
         output_format=output_format,
         output=output,
-        baseline=baseline,
+        save_baseline_path=save_baseline_path,
+        compare_baseline_path=compare_baseline_path,
+        fail_under=fail_under,
     )
-    _exit_if_under_threshold(report.score, fail_under)
 
 
 @app.command("scan-url")
@@ -200,24 +200,24 @@ def scan_url(
                     "temporary_copy": "removed after scan",
                 },
             )
-            baseline = _handle_baseline(report, save_baseline_path, compare_baseline_path)
     except RemoteScanError as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(2) from error
 
-    _render_report(
+    _finish_scan(
         report,
         include_score=not no_score,
         explain=explain,
         details=details,
         output_format=output_format,
         output=output,
-        baseline=baseline,
+        save_baseline_path=save_baseline_path,
+        compare_baseline_path=compare_baseline_path,
+        fail_under=fail_under,
     )
-    _exit_if_under_threshold(report.score, fail_under)
 
 
-def _render_report(
+def _finish_scan(
     report: ScanReport,
     *,
     include_score: bool,
@@ -225,8 +225,12 @@ def _render_report(
     details: bool,
     output_format: OutputFormat,
     output: Path | None,
-    baseline: dict | None,
+    save_baseline_path: Path | None,
+    compare_baseline_path: Path | None,
+    fail_under: int | None,
 ) -> None:
+    baseline = _handle_baseline(report, save_baseline_path, compare_baseline_path)
+    content = None
     if output_format == OutputFormat.text:
         buffer = StringIO() if output is not None else None
         console = Console(file=buffer, width=120, color_system=None) if buffer else None
@@ -239,9 +243,8 @@ def _render_report(
             console=console,
         )
         if buffer is not None:
-            _emit(buffer.getvalue(), output)
-        return
-    if output_format == OutputFormat.github:
+            content = buffer.getvalue()
+    elif output_format == OutputFormat.github:
         content = render_github_report(report, include_score=include_score)
     elif output_format == OutputFormat.json:
         data = report.to_dict(
@@ -266,7 +269,10 @@ def _render_report(
             details=details,
             baseline=baseline,
         )
-    _emit(content, output)
+    if content is not None:
+        _emit(content, output)
+    if fail_under is not None and report.score is not None and report.score < fail_under:
+        raise typer.Exit(1)
 
 
 @app.command()
@@ -325,11 +331,6 @@ def _validate_score_options(no_score: bool, fail_under: int | None) -> None:
     if no_score and fail_under is not None:
         typer.echo("Error: --fail-under cannot be used together with --no-score.", err=True)
         raise typer.Exit(2)
-
-
-def _exit_if_under_threshold(score: int | None, fail_under: int | None) -> None:
-    if fail_under is not None and score is not None and score < fail_under:
-        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

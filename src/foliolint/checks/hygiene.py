@@ -10,7 +10,7 @@ from foliolint.models import CheckResult
 
 
 def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
-    generated_dirs: set[str] = set()
+    generated_dirs: list[str] = []
     ignored_local_paths: list[str] = []
     env_files: list[str] = []
     log_files: list[str] = []
@@ -21,26 +21,27 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
 
     for item in _iter_paths(path, config):
         rel = item.relative_to(path).as_posix()
-        if tracked_paths is not None:
-            is_untracked_hygiene_path = _is_common_hygiene_path(item) and not _is_git_tracked(
-                rel, item.is_dir(), tracked_paths
-            )
-            if is_untracked_hygiene_path:
-                ignored_local_paths.append(rel)
-                continue
+        generated = item.name in GENERATED_DIRS
+        is_env = item.name == ".env" or item.name.startswith(".env.")
+        is_log = item.suffix.lower() == ".log"
+        hygiene_path = generated or is_env or is_log
+        is_dir = item.is_dir()
+        if tracked_paths is None:
+            ignored = _matches_gitignore(rel, is_dir, gitignore_patterns)
         else:
-            if _matches_gitignore(rel, item.is_dir(), gitignore_patterns):
-                if _is_common_hygiene_path(item):
-                    ignored_local_paths.append(rel)
-                continue
-        if item.is_dir() and item.name in GENERATED_DIRS:
-            generated_dirs.add(rel)
+            ignored = hygiene_path and not _is_git_tracked(rel, is_dir, tracked_paths)
+        if ignored:
+            if hygiene_path:
+                ignored_local_paths.append(rel)
+            continue
+        if generated and is_dir:
+            generated_dirs.append(rel)
             continue
         if not item.is_file():
             continue
-        if item.name == ".env" or item.name.startswith(".env."):
+        if is_env:
             env_files.append(rel)
-        if item.suffix.lower() == ".log":
+        if is_log:
             log_files.append(rel)
         try:
             if item.stat().st_size > threshold_bytes:
@@ -48,6 +49,7 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
         except OSError:
             continue
 
+    generated_dirs.sort()
     penalties = min(6, len(generated_dirs) * 2)
     penalties += min(4, len(large_files) * 3)
     penalties += min(4, len(env_files) * 4)
@@ -59,7 +61,7 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
     if has_issues:
         parts = []
         if generated_dirs:
-            parts.append(f"generated folders: {', '.join(sorted(generated_dirs)[:3])}")
+            parts.append(f"generated folders: {', '.join(generated_dirs[:3])}")
             recommendations.append(
                 "Remove generated folders from the repository if they are not needed."
             )
@@ -84,7 +86,7 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
         points=points,
         max_points=HYGIENE.max_points,
         details={
-            "generated_dirs": sorted(generated_dirs),
+            "generated_dirs": generated_dirs,
             "large_files": large_files,
             "env_files": env_files,
             "log_files": log_files,
@@ -130,15 +132,6 @@ def _matches_gitignore(rel_path: str, is_dir: bool, patterns: list[str]) -> bool
         if rel_path == normalized or rel_path.startswith(f"{normalized}/"):
             return True
     return False
-
-
-def _is_common_hygiene_path(item: Path) -> bool:
-    return (
-        item.name in GENERATED_DIRS
-        or item.name == ".env"
-        or item.name.startswith(".env.")
-        or item.suffix.lower() == ".log"
-    )
 
 
 def _git_tracked_paths(root: Path) -> set[str] | None:

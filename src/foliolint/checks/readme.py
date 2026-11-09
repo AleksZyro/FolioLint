@@ -27,70 +27,19 @@ def check_readme(path: Path, config: ShowcaseConfig) -> CheckResult:
     text = _read_text(readme)
     lowered = text.lower()
     evidence = _readme_evidence(text)
-    purpose_keywords = [
-        "purpose",
-        "what is",
-        "about",
-        "overview",
-        "description",
-        "ziel",
-        "zweck",
-        "this project",
-        "a tool",
-        "a library",
-        "a cli",
-        "an app",
-    ]
-    setup_keywords = [
-        "setup",
-        "install",
-        "installation",
-        "requirements",
-        "pip install",
-        "npm install",
-        "venv",
-    ]
-    usage_keywords = [
-        "usage",
-        "quick start",
-        "getting started",
-        "how to run",
-        "nutzung",
-        "benutzung",
-    ]
-    limitation_keywords = [
-        "status",
-        "limitations",
-        "limits",
-        "grenzen",
-        "roadmap",
-        "prototype",
-        "wip",
-    ]
-    media_keywords = [
-        "screenshot",
-        "demo",
-    ]
-    found = {
-        "exists": True,
-        "purpose": bool(evidence["purpose"])
-        or _has_any_term(lowered, purpose_keywords)
-        or _looks_like_project_description(text),
-        "setup": bool(evidence["setup"]) or _has_any_term(lowered, setup_keywords),
-        "usage": bool(evidence["usage"]) or _has_any_term(lowered, usage_keywords),
-        "tests": bool(evidence["tests"])
-        or _has_any_term(
-            lowered,
-            ["tests", "testing", "test suite", "pytest", "unittest", "npm test", "coverage"],
-        ),
-        "limitations": bool(evidence["limitations"]) or _has_any_term(lowered, limitation_keywords),
-        "screenshot_or_demo": bool(evidence["screenshot_or_demo"])
-        or _has_any_term(lowered, media_keywords)
-        or _readme_media_reference(text),
-    }
-    for key, value in found.items():
-        if value and key != "exists" and not evidence[key]:
-            evidence[key].append("keyword or content heuristic")
+    for section, matches in evidence.items():
+        if matches:
+            continue
+        terms = README_HEADINGS[section] + README_EXTRA_TERMS.get(section, [])
+        if section == "screenshot_or_demo":
+            # A heading like "Preview" counts, but the word alone in prose does not.
+            terms = ["screenshot", "demo"]
+        if _has_any_term(lowered, terms) or (
+            section == "purpose" and _looks_like_project_description(text)
+        ):
+            matches.append("keyword or content heuristic")
+
+    found = {"exists": True, **{section: bool(matches) for section, matches in evidence.items()}}
     point_rules = {
         "exists": 5,
         "purpose": 4,
@@ -150,7 +99,7 @@ def _readme_evidence(text: str) -> dict[str, list[str]]:
 
     for category, aliases in README_HEADINGS.items():
         for heading in headings:
-            if any(re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", heading) for alias in aliases):
+            if _has_any_term(heading, aliases):
                 evidence[category].append(f"heading '{heading}'")
                 break
 
@@ -203,14 +152,10 @@ def _readme_explanation(points: int, evidence: dict[str, list[str]]) -> str:
 
 def _readme_message(found: dict[str, bool]) -> str:
     labels = {
-        "purpose": "purpose",
-        "setup": "setup",
-        "usage": "usage",
-        "tests": "tests",
         "limitations": "status or limitations",
         "screenshot_or_demo": "screenshot or demo",
     }
-    present = [label for key, label in labels.items() if found.get(key)]
+    present = [labels.get(section, section) for section in README_HEADINGS if found[section]]
     if not present:
         return "README.md exists but key showcase sections were not detected."
     return f"README hints found: {', '.join(present)}."
@@ -223,6 +168,14 @@ README_HEADINGS = {
     "tests": ["tests", "testing", "test suite"],
     "limitations": ["status", "limitations", "limits", "roadmap", "grenzen"],
     "screenshot_or_demo": ["demo", "screenshot", "screenshots", "preview"],
+}
+
+README_EXTRA_TERMS = {
+    "purpose": ["this project", "a tool", "a library", "a cli", "an app"],
+    "setup": ["pip install", "npm install", "venv"],
+    "usage": ["benutzung"],
+    "tests": ["pytest", "unittest", "npm test", "coverage"],
+    "limitations": ["prototype", "wip"],
 }
 
 
