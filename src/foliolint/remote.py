@@ -54,17 +54,13 @@ def parse_github_repo_url(url: str) -> GitHubRepo:
         or parsed.query
         or parsed.fragment
         or len(parts) != 2
+        or parts[-1].endswith(".git")
     ):
         raise RemoteScanError(
             "FolioLint only supports public GitHub repository URLs like "
             "https://github.com/OWNER/REPO."
         )
     owner, repo = parts
-    if not owner or not repo or repo.endswith(".git"):
-        raise RemoteScanError(
-            "FolioLint only supports public GitHub repository URLs like "
-            "https://github.com/OWNER/REPO."
-        )
     return GitHubRepo(owner=owner, name=repo)
 
 
@@ -77,16 +73,16 @@ def prepare_remote_repository(
 ) -> Iterator[RemoteRepository]:
     repo = parse_github_repo_url(url)
     branches = [branch] if branch else ["main", "master"]
-    for candidate_branch in branches:
+    last_error: RemoteScanError | None = None
+    for branch_index, candidate_branch in enumerate(branches):
         _validate_branch_name(candidate_branch)
-    with tempfile.TemporaryDirectory(prefix="foliolint-remote-") as temp_dir:
-        temp_path = Path(temp_dir)
-        last_error: RemoteScanError | None = None
-        for branch_index, candidate_branch in enumerate(branches):
+        zip_url = repo.zip_url(candidate_branch)
+        with tempfile.TemporaryDirectory(prefix="foliolint-remote-") as temp_dir:
+            temp_path = Path(temp_dir)
             zip_path = temp_path / f"archive-{branch_index}.zip"
             try:
                 download_zip(
-                    repo.zip_url(candidate_branch),
+                    zip_url,
                     zip_path,
                     max_download_mb=max_download_mb,
                 )
@@ -100,7 +96,7 @@ def prepare_remote_repository(
             yield RemoteRepository(
                 path=repo_path,
                 branch=candidate_branch,
-                url=repo.zip_url(candidate_branch),
+                url=zip_url,
             )
             return
 
@@ -118,8 +114,7 @@ def prepare_remote_repository(
 def _validate_branch_name(branch: str) -> None:
     if (
         not branch
-        or branch in {".", ".."}
-        or "\\" in branch
+        or branch == "."
         or "//" in branch
         or ".." in branch
         or branch.startswith("/")
@@ -146,10 +141,7 @@ def download_zip(
                 raise DownloadTooLargeError(_download_limit_message(max_download_mb))
             with destination.open("wb") as file:
                 copied = 0
-                while True:
-                    chunk = response.read(1024 * 1024)
-                    if not chunk:
-                        break
+                while chunk := response.read(BYTES_PER_MB):
                     copied += len(chunk)
                     if copied > max_bytes:
                         raise DownloadTooLargeError(_download_limit_message(max_download_mb))
@@ -163,7 +155,7 @@ def download_zip(
         raise RemoteScanError(
             "FolioLint could not download this repository. Please try again later."
         ) from error
-    except (OSError, urllib.error.URLError) as error:
+    except OSError as error:
         raise RemoteScanError(
             "FolioLint could not download this repository. Check your internet connection "
             "and the repository URL."
@@ -179,39 +171,27 @@ def extract_zip(
 ) -> None:
     try:
         with zipfile.ZipFile(zip_path) as archive:
+            root = destination.resolve()
             _validate_zip_members(
                 archive,
-                destination,
+                root,
                 max_extracted_mb=max_extracted_mb,
                 max_files=max_files,
             )
-            _extract_zip_safely(archive, destination)
+            archive.extractall(root, members=archive.infolist())
     except (OSError, zipfile.BadZipFile) as error:
         raise RemoteScanError(
             "FolioLint downloaded the repository ZIP, but could not unpack it."
         ) from error
 
 
-def _extract_zip_safely(archive: zipfile.ZipFile, destination: Path) -> None:
-    destination_root = destination.resolve()
-    for member in archive.infolist():
-        target_path = (destination_root / member.filename).resolve()
-        if not target_path.is_relative_to(destination_root):
-            raise RemoteScanError(
-                "FolioLint stopped unpacking the repository ZIP because it contains "
-                "unsafe file paths."
-            )
-        archive.extract(member, destination_root)
-
-
 def find_extracted_repo(temp_path: Path, zip_path: Path) -> Path:
-    directories = [
+    directories = (
         path for path in temp_path.iterdir() if path.is_dir() and path.name != zip_path.stem
-    ]
-    if len(directories) == 1:
-        return directories[0]
-    if directories:
-        return sorted(directories, key=lambda path: path.name)[0]
+    )
+    directory = min(directories, key=lambda path: path.name, default=None)
+    if directory is not None:
+        return directory
     raise RemoteScanError("FolioLint could not find the downloaded repository folder.")
 
 
@@ -233,7 +213,7 @@ def _content_length_exceeds_limit(content_length: str | None, max_bytes: int) ->
 
 def _validate_zip_members(
     archive: zipfile.ZipFile,
-    destination: Path,
+    destination_root: Path,
     *,
     max_extracted_mb: int,
     max_files: int,
@@ -252,12 +232,9 @@ def _validate_zip_members(
             f"FolioLint stopped the ZIP because it expands beyond {max_extracted_mb} MB."
         )
 
-    destination_root = destination.resolve()
     for member in members:
-        member_path = destination_root / member.filename
-        try:
-            member_path.resolve().relative_to(destination_root)
-        except ValueError as error:
+        target = (destination_root / member.filename).resolve()
+        if not target.is_relative_to(destination_root):
             raise RemoteScanError(
                 "FolioLint stopped the ZIP because it contains an unsafe file path."
-            ) from error
+            )

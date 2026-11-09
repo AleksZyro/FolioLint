@@ -1,8 +1,8 @@
 import subprocess
 from pathlib import Path
 
-from foliolint.checks import check_hygiene, check_secrets, check_tests
-from foliolint.config import ShowcaseConfig
+from foliolint.checks import check_hygiene, check_secrets, check_tests, common
+from foliolint.config import IgnoreConfig, ShowcaseConfig
 
 
 def test_hygiene_check_detects_env_file(tmp_path: Path) -> None:
@@ -213,3 +213,22 @@ jobs:
 
 def _init_git_repo(path: Path) -> None:
     subprocess.run(["git", "-C", str(path), "init"], check=True, capture_output=True)
+
+
+def test_walk_prunes_ignored_and_secret_skip_directories(tmp_path: Path, monkeypatch) -> None:
+    for name in ("include", "ignored", "node_modules", ".git"):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "example.txt").write_text("example", encoding="utf-8")
+    opened = []
+    scandir = common.scandir
+
+    def record_scan(path):
+        opened.append(path)
+        return scandir(path)
+
+    monkeypatch.setattr(common, "scandir", record_scan)
+    config = ShowcaseConfig(ignore=IgnoreConfig(paths=["/ignored/"]))
+    files = list(common._iter_files(tmp_path, config, skip_dirs={"node_modules"}))
+
+    assert files == [tmp_path / "include" / "example.txt"]
+    assert opened == [tmp_path, tmp_path / "include"]

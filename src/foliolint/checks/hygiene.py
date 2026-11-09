@@ -16,8 +16,8 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
     log_files: list[str] = []
     large_files: list[str] = []
     threshold_bytes = config.thresholds.large_file_mb * 1024 * 1024
-    gitignore_patterns = _read_gitignore_patterns(path)
     tracked_paths = _git_tracked_paths(path)
+    gitignore_patterns = _read_gitignore_patterns(path) if tracked_paths is None else []
 
     for item in _iter_paths(path, config):
         rel = item.relative_to(path).as_posix()
@@ -102,8 +102,6 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
 
 def _read_gitignore_patterns(root: Path) -> list[str]:
     gitignore = root / ".gitignore"
-    if not gitignore.exists():
-        return []
     patterns: list[str] = []
     for line in _read_text(gitignore).splitlines():
         pattern = line.strip()
@@ -154,8 +152,7 @@ def _git_tracked_paths(root: Path) -> set[str] | None:
     except (OSError, subprocess.CalledProcessError):
         return None
 
-    paths = {path for path in result.stdout.split("\0") if path}
-    return paths
+    return {path for path in result.stdout.split("\0") if path}
 
 
 def _is_git_tracked(rel_path: str, is_dir: bool, tracked_paths: set[str]) -> bool:

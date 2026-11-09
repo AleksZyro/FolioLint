@@ -106,6 +106,30 @@ def test_project_type_detection_identifies_node_cli_metadata(tmp_path: Path) -> 
     assert detect_project_type(tmp_path)[0] == "node-cli"
 
 
+def test_non_object_package_json_does_not_abort_scan(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text("[]", encoding="utf-8")
+
+    report = scan_project(tmp_path)
+
+    assert detect_project_type(tmp_path) == ("node", ["package.json"])
+    tests = next(check for check in report.checks if check.category == "Tests")
+    assert tests.details["package_json_test_script"] is False
+
+
+def test_ignoring_metadata_preserves_inferred_project_weighting(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        '[project.scripts]\nexample = "example:main"\n', encoding="utf-8"
+    )
+    (tmp_path / ".foliolint.toml").write_text('[ignore]\nchecks = ["metadata"]', encoding="utf-8")
+
+    report = scan_project(tmp_path)
+
+    assert [check.max_points for check in report.checks if check.category in {"Media", "Demo"}] == [
+        5,
+        5,
+    ]
+
+
 def test_cli_output_writes_report_file(tmp_path: Path) -> None:
     runner = CliRunner()
     output_path = tmp_path / "reports" / "scan.md"

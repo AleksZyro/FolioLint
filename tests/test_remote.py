@@ -115,6 +115,26 @@ def test_prepare_remote_repository_uses_explicit_branch(tmp_path: Path, monkeypa
     assert urls == ["https://github.com/AleksZyro/FolioLint/archive/refs/heads/develop.zip"]
 
 
+def test_branch_fallback_does_not_scan_partial_extraction(monkeypatch) -> None:
+    failed_paths = []
+
+    def extract(zip_path, destination):
+        if zip_path.name == "archive-0.zip":
+            partial = destination / "a-partial-main"
+            partial.mkdir()
+            failed_paths.append(partial)
+            raise RemoteScanError("partial extraction")
+        (destination / "project-master").mkdir()
+
+    monkeypatch.setattr(remote, "download_zip", lambda *args, **kwargs: None)
+    monkeypatch.setattr(remote, "extract_zip", extract)
+
+    with prepare_remote_repository("https://github.com/example/project") as repo:
+        assert repo.branch == "master"
+        assert repo.path.name == "project-master"
+        assert not failed_paths[0].exists()
+
+
 def test_prepare_remote_repository_rejects_path_traversal_branch(monkeypatch) -> None:
     called = False
 

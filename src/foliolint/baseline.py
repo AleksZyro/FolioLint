@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from foliolint.models import ScanReport
+from foliolint.models import CheckResult, ScanReport
 
 BASELINE_SCHEMA_VERSION = 2
 
@@ -17,15 +17,7 @@ def save_baseline(report: ScanReport, path: Path) -> None:
         "schema_version": BASELINE_SCHEMA_VERSION,
         "score": report.score,
         "status": report.status,
-        "checks": [
-            {
-                "category": check.category,
-                "status": check.status,
-                "points": check.points,
-                "max_points": check.max_points,
-            }
-            for check in report.checks
-        ],
+        "checks": [{"category": check.category, **_check_state(check)} for check in report.checks],
     }
     provenance = _provenance_for_report(report)
     if provenance is not None:
@@ -69,25 +61,15 @@ def compare_baseline(report: ScanReport, baseline: dict[str, Any]) -> dict[str, 
         if previous is None:
             changed.append({"category": category, "change": "added", "status": check.status})
             continue
-        if (
-            previous.get("status") != check.status
-            or previous.get("points") != check.points
-            or previous.get("max_points") != check.max_points
-        ):
+        current_state = _check_state(check)
+        previous_state = {key: previous.get(key) for key in current_state}
+        if previous_state != current_state:
             changed.append(
                 {
                     "category": category,
                     "change": "changed",
-                    "from": {
-                        "status": previous.get("status"),
-                        "points": previous.get("points"),
-                        "max_points": previous.get("max_points"),
-                    },
-                    "to": {
-                        "status": check.status,
-                        "points": check.points,
-                        "max_points": check.max_points,
-                    },
+                    "from": previous_state,
+                    "to": current_state,
                 }
             )
     for category in old_checks.keys() - new_checks.keys():
@@ -106,6 +88,10 @@ def compare_baseline(report: ScanReport, baseline: dict[str, Any]) -> dict[str, 
         "changed_checks": changed,
         "identity_status": identity_status,
     }
+
+
+def _check_state(check: CheckResult) -> dict[str, str | int]:
+    return {"status": check.status, "points": check.points, "max_points": check.max_points}
 
 
 def _read_provenance(baseline: dict[str, Any]) -> dict[str, str] | None:

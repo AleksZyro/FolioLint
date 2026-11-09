@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-import json
+from itertools import islice
 from pathlib import Path
 
 from foliolint.check_metadata import TESTS
-from foliolint.checks.common import _is_ignored, _iter_files, _read_text
+from foliolint.checks.common import _ignored_paths, _iter_files, _read_text, _workflow_files
+from foliolint.checks.project_type import _read_package_json
 from foliolint.config import ShowcaseConfig
 from foliolint.models import CheckResult
 
 
 def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
-    files = list(_iter_files(path, config))
-    has_tests_dir = (path / "tests").is_dir() and not _is_ignored(path / "tests", path, config)
-    test_files = []
-    for file in files:
-        if _is_test_file(file):
-            test_files.append(file)
-    package_test = _package_json_has_test_script(path / "package.json")
-    github_actions_details = _github_actions_details(path)
-    github_actions = github_actions_details["has_meaningful_checks"]
+    has_tests_dir = "tests" not in _ignored_paths(config) and (path / "tests").is_dir()
+    test_files = list(
+        islice((file for file in _iter_files(path, config) if _is_test_file(file)), 10)
+    )
+    scripts = _read_package_json(path / "package.json").get("scripts")
+    package_test = isinstance(scripts, dict) and isinstance(scripts.get("test"), str)
+    workflows = _workflow_files(path)
+    tools = _workflow_tools(workflows)
+    github_actions = bool(tools)
     points = 0
     if has_tests_dir:
         points += 5
@@ -30,11 +31,11 @@ def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
         points += 3
     details = {
         "tests_dir": has_tests_dir,
-        "test_files": [file.relative_to(path).as_posix() for file in test_files[:10]],
+        "test_files": [file.relative_to(path).as_posix() for file in test_files],
         "package_json_test_script": package_test,
         "github_actions": github_actions,
-        "github_actions_files": github_actions_details["files"],
-        "github_actions_tools": github_actions_details["tools"],
+        "github_actions_files": [file.relative_to(path).as_posix() for file in workflows],
+        "github_actions_tools": tools,
     }
     status = "ok" if points >= 8 else "warning"
     message = "Test setup detected." if points >= 8 else "No clear test setup detected."
@@ -62,17 +63,6 @@ def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
     )
 
 
-def _package_json_has_test_script(path: Path) -> bool:
-    if not path.exists():
-        return False
-    try:
-        package = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return False
-    scripts = package.get("scripts", {})
-    return isinstance(scripts, dict) and isinstance(scripts.get("test"), str)
-
-
 def _is_test_file(file: Path) -> bool:
     name = file.name.lower()
     if file.suffix == ".py" and (name.startswith("test_") or name.endswith("_test.py")):
@@ -80,14 +70,7 @@ def _is_test_file(file: Path) -> bool:
     return any(name.endswith(suffix) for suffix in TEST_FILE_SUFFIXES)
 
 
-def _github_actions_details(path: Path) -> dict[str, object]:
-    workflows = path / ".github" / "workflows"
-    if not workflows.is_dir():
-        return {"files": [], "tools": [], "has_meaningful_checks": False}
-
-    workflow_files = [
-        file for file in workflows.iterdir() if file.is_file() and file.suffix in {".yml", ".yaml"}
-    ]
+def _workflow_tools(workflow_files: list[Path]) -> list[str]:
     tools: set[str] = set()
     for file in workflow_files:
         text = _read_text(file).lower()
@@ -95,11 +78,7 @@ def _github_actions_details(path: Path) -> dict[str, object]:
             if any(hint in text for hint in hints):
                 tools.add(tool)
 
-    return {
-        "files": [file.relative_to(path).as_posix() for file in workflow_files],
-        "tools": sorted(tools),
-        "has_meaningful_checks": bool(tools),
-    }
+    return sorted(tools)
 
 
 TEST_FILE_SUFFIXES = (

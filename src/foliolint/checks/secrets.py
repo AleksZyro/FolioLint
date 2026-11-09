@@ -11,9 +11,7 @@ from foliolint.models import CheckResult
 
 def check_secrets(path: Path, config: ShowcaseConfig) -> CheckResult:
     matches: list[dict[str, str]] = []
-    for file in _iter_files(path, config):
-        if _is_in_skipped_secret_dir(file, path):
-            continue
+    for file in _iter_files(path, config, skip_dirs=SECRET_SCAN_SKIP_DIRS):
         if not _should_scan_text(file):
             continue
         text = _read_text(file)
@@ -28,6 +26,8 @@ def check_secrets(path: Path, config: ShowcaseConfig) -> CheckResult:
                     "line": str(match["line"]),
                 }
             )
+            if len(matches) == 20:
+                break
 
     if matches:
         return CheckResult(
@@ -36,7 +36,7 @@ def check_secrets(path: Path, config: ShowcaseConfig) -> CheckResult:
             message="Obvious secret risk hints found.",
             points=0,
             max_points=SECRETS.max_points,
-            details={"matches": matches[:20]},
+            details={"matches": matches},
             explanation=(
                 "Secrets gets 0/10 because obvious risky strings were found. "
                 "This is not a full security scan."
@@ -68,14 +68,6 @@ def _should_scan_text(file: Path) -> bool:
         return False
 
 
-def _is_in_skipped_secret_dir(file: Path, root: Path) -> bool:
-    try:
-        relative_parts = file.relative_to(root).parts
-    except ValueError:
-        return False
-    return any(part in SECRET_SCAN_SKIP_DIRS for part in relative_parts[:-1])
-
-
 def _find_secret_hint(text: str) -> dict[str, int | str] | None:
     private_key_marker = "BEGIN " + "RSA PRIVATE KEY"
     for line_number, line in enumerate(text.splitlines(), start=1):
@@ -95,16 +87,6 @@ def _is_comment_line(line: str) -> bool:
 
 
 SECRET_SCAN_SKIP_DIRS = GENERATED_DIRS | {".ruff_cache", ".venv", "venv", "site-packages"}
-
-
-SECRET_PATTERNS = [
-    "API" + "_KEY",
-    "SECRET",
-    "TOKEN",
-    "PASSWORD",
-    "PRIVATE" + "_KEY",
-    "BEGIN " + "RSA PRIVATE KEY",
-]
 
 
 SECRET_ASSIGNMENT_RE = re.compile(

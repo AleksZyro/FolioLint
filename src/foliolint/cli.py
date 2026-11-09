@@ -8,11 +8,14 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from rich.console import Console
+from rich.table import Table
 
 from foliolint.baseline import compare_baseline, load_baseline, save_baseline
 from foliolint.checks import CHECK_REGISTRY
 from foliolint.config import CONFIG_FILE, DEFAULT_CONFIG
 from foliolint.github_report import render_github_report
+from foliolint.models import ScanReport
 from foliolint.remote import DEFAULT_MAX_DOWNLOAD_MB, RemoteScanError, prepare_remote_repository
 from foliolint.report import render_html_report, render_markdown_report, render_text_report
 from foliolint.scanner import scan_project
@@ -119,12 +122,11 @@ def list_checks(
     if output_format == CheckListFormat.json:
         typer.echo(json.dumps([check.to_dict() for check in checks], indent=2))
         return
-    from rich.console import Console
-    from rich.table import Table
-
-    table = Table(title="FolioLint checks")
-    for column in ("Check ID", "Category", "Description", "Scored (max)"):
-        table.add_column(column)
+    table = Table(title="FolioLint checks", box=None, header_style="bold", pad_edge=False)
+    table.add_column("Check ID", style="bold", no_wrap=True)
+    table.add_column("Category")
+    table.add_column("Description", ratio=1)
+    table.add_column("Scored (max)", justify="right")
     for check in checks:
         table.add_row(
             check.id,
@@ -149,9 +151,7 @@ def scan(
     compare_baseline_path: CompareBaselineOption = None,
 ) -> None:
     """Scan a repository path."""
-    if no_score and fail_under is not None:
-        typer.echo("Error: --fail-under cannot be used together with --no-score.", err=True)
-        raise typer.Exit(2)
+    _validate_score_options(no_score, fail_under)
 
     report = scan_project(path, include_score=not no_score, strict=strict)
     baseline = _handle_baseline(report, save_baseline_path, compare_baseline_path)
@@ -183,9 +183,7 @@ def scan_url(
     compare_baseline_path: CompareBaselineOption = None,
 ) -> None:
     """Download a public GitHub repository ZIP temporarily and scan it."""
-    if no_score and fail_under is not None:
-        typer.echo("Error: --fail-under cannot be used together with --no-score.", err=True)
-        raise typer.Exit(2)
+    _validate_score_options(no_score, fail_under)
 
     try:
         with prepare_remote_repository(
@@ -220,7 +218,7 @@ def scan_url(
 
 
 def _render_report(
-    report,
+    report: ScanReport,
     *,
     include_score: bool,
     explain: bool,
@@ -229,40 +227,46 @@ def _render_report(
     output: Path | None,
     baseline: dict | None,
 ) -> None:
+    if output_format == OutputFormat.text:
+        buffer = StringIO() if output is not None else None
+        console = Console(file=buffer, width=120, color_system=None) if buffer else None
+        render_text_report(
+            report,
+            include_score=include_score,
+            explain=explain,
+            details=details,
+            baseline=baseline,
+            console=console,
+        )
+        if buffer is not None:
+            _emit(buffer.getvalue(), output)
+        return
     if output_format == OutputFormat.github:
-        _emit(render_github_report(report, include_score=include_score), output)
-        return
-    if output_format == OutputFormat.json:
-        content = json.dumps(
-            _report_data(report, include_score, explain, details, baseline),
-            indent=2,
-            sort_keys=True,
+        content = render_github_report(report, include_score=include_score)
+    elif output_format == OutputFormat.json:
+        data = report.to_dict(
+            include_score=include_score,
+            include_explanation=explain,
+            include_details=details,
         )
-        _emit(content, output)
-        return
-    if output_format == OutputFormat.markdown:
-        _emit(
-            render_markdown_report(report, include_score=include_score, details=details)
-            + _baseline_markdown(baseline),
-            output,
+        if baseline is not None:
+            data["baseline"] = baseline
+        content = json.dumps(data, indent=2, sort_keys=True)
+    elif output_format == OutputFormat.markdown:
+        content = render_markdown_report(
+            report,
+            include_score=include_score,
+            details=details,
+            baseline=baseline,
         )
-        return
-    if output_format == OutputFormat.html:
-        _emit(
-            render_html_report(
-                report, include_score=include_score, details=details, baseline=baseline
-            ),
-            output,
+    else:
+        content = render_html_report(
+            report,
+            include_score=include_score,
+            details=details,
+            baseline=baseline,
         )
-        return
-    _emit_text_report(
-        report,
-        include_score=include_score,
-        explain=explain,
-        details=details,
-        output=output,
-        baseline=baseline,
-    )
+    _emit(content, output)
 
 
 @app.command()
@@ -297,41 +301,9 @@ def _emit(content: str, output: Path | None) -> None:
     typer.echo(f"Report written to {output}")
 
 
-def _emit_text_report(
-    report,
-    *,
-    include_score: bool,
-    explain: bool,
-    details: bool,
-    output: Path | None,
-    baseline: dict | None,
-) -> None:
-    if output is None:
-        render_text_report(report, include_score=include_score, explain=explain, details=details)
-        if baseline is not None:
-            typer.echo()
-            typer.echo("Baseline comparison")
-            typer.echo(_baseline_text(baseline))
-        return
-    from rich.console import Console
-
-    buffer = StringIO()
-    console = Console(file=buffer, width=120, color_system=None, force_terminal=False)
-    render_text_report(
-        report,
-        include_score=include_score,
-        explain=explain,
-        details=details,
-        console=console,
-    )
-    if baseline is not None:
-        console.print()
-        console.print("Baseline comparison")
-        console.print(_baseline_text(baseline))
-    _emit(buffer.getvalue(), output)
-
-
-def _handle_baseline(report, save_path: Path | None, compare_path: Path | None) -> dict | None:
+def _handle_baseline(
+    report: ScanReport, save_path: Path | None, compare_path: Path | None
+) -> dict | None:
     comparison = None
     if compare_path is not None:
         try:
@@ -349,43 +321,10 @@ def _handle_baseline(report, save_path: Path | None, compare_path: Path | None) 
     return comparison
 
 
-def _report_data(
-    report, include_score: bool, explain: bool, details: bool, baseline: dict | None
-) -> dict:
-    data = report.to_dict(
-        include_score=include_score,
-        include_explanation=explain,
-        include_details=details,
-    )
-    if baseline is not None:
-        data["baseline"] = baseline
-    return data
-
-
-def _baseline_text(baseline: dict) -> str:
-    delta = baseline.get("score_delta")
-    delta_text = "n/a" if delta is None else f"{delta:+}"
-    changes = baseline.get("changed_checks", [])
-    lines = [
-        f"Score: {baseline.get('baseline_score')} -> {baseline.get('current_score')} ({delta_text})"
-    ]
-    status = baseline.get("identity_status")
-    if status == "legacy_unverified":
-        lines.append("Repository identity: not verified (legacy baseline)")
-    elif status == "unverified":
-        lines.append("Repository identity: not verified")
-    elif status == "matched":
-        lines.append("Repository identity: matched")
-    lines.extend(f"- {item['category']}: {item['change']}" for item in changes)
-    if not changes:
-        lines.append("- No category changes")
-    return "\n".join(lines)
-
-
-def _baseline_markdown(baseline: dict | None) -> str:
-    if baseline is None:
-        return ""
-    return "\n## Baseline Comparison\n\n```text\n" + _baseline_text(baseline) + "\n```\n"
+def _validate_score_options(no_score: bool, fail_under: int | None) -> None:
+    if no_score and fail_under is not None:
+        typer.echo("Error: --fail-under cannot be used together with --no-score.", err=True)
+        raise typer.Exit(2)
 
 
 def _exit_if_under_threshold(score: int | None, fail_under: int | None) -> None:

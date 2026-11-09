@@ -33,13 +33,8 @@ def apply_strict_mode(checks: list[CheckResult]) -> list[CheckResult]:
             continue
 
         new_points = max(0, check.points - penalty)
-        explanation = check.explanation
-        if explanation:
-            explanation = (
-                f"{explanation} Strict mode deducted {check.points - new_points} point(s)."
-            )
-        else:
-            explanation = f"Strict mode deducted {check.points - new_points} point(s)."
+        deduction = f"Strict mode deducted {check.points - new_points} point(s)."
+        explanation = f"{check.explanation} {deduction}" if check.explanation else deduction
         strict_checks.append(replace(check, points=new_points, explanation=explanation))
     return strict_checks
 
@@ -77,11 +72,12 @@ def apply_project_type(checks: list[CheckResult], project_type: str | None) -> l
 
 
 def calculate_score(checks: list[CheckResult]) -> int:
-    max_points = sum(check.max_points for check in checks if check.max_points > 0)
-    if max_points == 0:
-        return 0
-    points = sum(check.points for check in checks if check.max_points > 0)
-    return max(0, min(100, round(points / max_points * 100)))
+    points = max_points = 0
+    for check in checks:
+        if check.max_points > 0:
+            points += check.points
+            max_points += check.max_points
+    return max(0, min(100, round(points / max_points * 100))) if max_points else 0
 
 
 def _strict_penalty(check: CheckResult) -> int:

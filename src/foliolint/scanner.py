@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from foliolint.check_metadata import METADATA
 from foliolint.checks import detect_project_type, run_checks
 from foliolint.config import load_config
-from foliolint.models import ScanReport
+from foliolint.models import CheckResult, ScanReport
 from foliolint.scoring import apply_project_type, apply_strict_mode, calculate_score, score_status
 
 
@@ -17,8 +18,14 @@ def scan_project(path: Path, *, include_score: bool = True, strict: bool = False
 
     config = load_config(root)
     checks = run_checks(root, config)
-    detected_type, _ = detect_project_type(root)
-    checks = apply_project_type(checks, config.project.type or detected_type)
+    project_type = config.project.type
+    if not project_type:
+        metadata = next((check for check in checks if check.category == METADATA.category), None)
+        if metadata is not None and "project_type" in metadata.details:
+            project_type = metadata.details["project_type"]
+        else:
+            project_type, _ = detect_project_type(root)
+    checks = apply_project_type(checks, project_type)
     if strict:
         checks = apply_strict_mode(checks)
 
@@ -35,12 +42,5 @@ def scan_project(path: Path, *, include_score: bool = True, strict: bool = False
     )
 
 
-def _collect_recommendations(checks: list) -> list[str]:
-    recommendations: list[str] = []
-    seen: set[str] = set()
-    for check in checks:
-        for recommendation in check.recommendations:
-            if recommendation not in seen:
-                recommendations.append(recommendation)
-                seen.add(recommendation)
-    return recommendations[:8]
+def _collect_recommendations(checks: list[CheckResult]) -> list[str]:
+    return list(dict.fromkeys(item for check in checks for item in check.recommendations))[:8]

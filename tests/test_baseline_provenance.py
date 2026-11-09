@@ -10,8 +10,9 @@ from typer.testing import CliRunner
 
 from foliolint import remote
 from foliolint.baseline import compare_baseline, load_baseline, save_baseline
-from foliolint.cli import _baseline_text, app
+from foliolint.cli import app
 from foliolint.models import ScanReport
+from foliolint.report import format_baseline
 
 
 def test_saved_local_baseline_records_schema_and_normalized_origin(tmp_path: Path) -> None:
@@ -153,7 +154,7 @@ def test_local_folder_without_git_metadata_is_not_claimed_as_matched(tmp_path: P
 
 
 def test_text_baseline_output_keeps_unverified_status_without_category_changes() -> None:
-    text = _baseline_text(
+    text = format_baseline(
         {
             "baseline_score": 50,
             "current_score": 50,
