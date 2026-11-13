@@ -287,11 +287,12 @@ def init(path: InitPathArgument = Path(".")) -> None:
         typer.echo(f"Error: Folder does not exist: {path}", err=True)
         raise typer.Exit(2)
     config_path = target / CONFIG_FILE
-    if config_path.exists():
-        typer.echo(f"Error: {CONFIG_FILE} already exists; it was not changed.", err=True)
-        raise typer.Exit(2)
     try:
-        config_path.write_text(DEFAULT_CONFIG, encoding="utf-8")
+        with config_path.open("x", encoding="utf-8") as config_file:
+            config_file.write(DEFAULT_CONFIG)
+    except FileExistsError as error:
+        typer.echo(f"Error: {CONFIG_FILE} already exists; it was not changed.", err=True)
+        raise typer.Exit(2) from error
     except OSError as error:
         typer.echo(f"Error: Could not create {config_path}: {error}", err=True)
         raise typer.Exit(2) from error

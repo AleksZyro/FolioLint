@@ -97,6 +97,24 @@ def test_init_creates_example_config_without_overwriting(tmp_path: Path) -> None
     assert "already exists" in second.stderr
 
 
+def test_init_preserves_config_created_just_before_open(tmp_path: Path, monkeypatch) -> None:
+    config_path = tmp_path / CONFIG_FILE
+    original_open = Path.open
+
+    def open_after_concurrent_creation(path, mode="r", *args, **kwargs):
+        if path == config_path and mode in {"w", "x"}:
+            with original_open(path, "x", encoding="utf-8") as config_file:
+                config_file.write("[project]\ntype = 'library'\n")
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", open_after_concurrent_creation)
+    result = CliRunner().invoke(app, ["init", str(tmp_path)])
+
+    assert result.exit_code == 2
+    assert "already exists" in result.stderr
+    assert config_path.read_text(encoding="utf-8") == "[project]\ntype = 'library'\n"
+
+
 def test_project_type_detection_supports_python_and_react(tmp_path: Path) -> None:
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'demo'\n", encoding="utf-8")
     assert detect_project_type(tmp_path)[0] == "python"
