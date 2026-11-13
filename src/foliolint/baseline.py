@@ -72,8 +72,9 @@ def compare_baseline(report: ScanReport, baseline: dict[str, Any]) -> dict[str, 
                     "to": current_state,
                 }
             )
-    for category in old_checks.keys() - new_checks.keys():
-        changed.append({"category": category, "change": "removed"})
+    for category in old_checks:
+        if category not in new_checks:
+            changed.append({"category": category, "change": "removed"})
 
     old_score = baseline.get("score")
     score_delta = (

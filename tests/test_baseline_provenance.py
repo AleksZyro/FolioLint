@@ -143,6 +143,18 @@ def test_legacy_baseline_remains_comparable_but_is_unverified() -> None:
     assert comparison["identity_status"] == "legacy_unverified"
 
 
+def test_removed_categories_keep_baseline_order() -> None:
+    categories = ["Third", "First", "Second", "Fourth", "Fifth"]
+    for order in (categories, list(reversed(categories))):
+        baseline = {"score": 50, "checks": [{"category": category} for category in order]}
+
+        comparison = compare_baseline(_report(Path(".")), baseline)
+
+        assert comparison["changed_checks"] == [
+            {"category": category, "change": "removed"} for category in order
+        ]
+
+
 def test_local_folder_without_git_metadata_is_not_claimed_as_matched(tmp_path: Path) -> None:
     baseline_path = tmp_path / "baseline.json"
     save_baseline(_report(tmp_path), baseline_path)
