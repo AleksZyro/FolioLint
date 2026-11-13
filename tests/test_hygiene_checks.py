@@ -64,6 +64,21 @@ def test_hygiene_check_warns_for_tracked_generated_dir(tmp_path: Path) -> None:
     assert result.details["generated_dirs"] == ["dist"]
 
 
+def test_hygiene_check_distinguishes_tracked_ancestors_from_untracked_dirs(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    tracked = tmp_path / "app" / "build" / "nested" / "asset.js"
+    tracked.parent.mkdir(parents=True)
+    tracked.write_text("example", encoding="utf-8")
+    (tmp_path / "app" / "build" / "dist").mkdir()
+    (tmp_path / "build").mkdir()
+    subprocess.run(["git", "-C", str(tmp_path), "add", "app/build/nested/asset.js"], check=True)
+
+    result = check_hygiene(tmp_path, ShowcaseConfig())
+
+    assert result.details["generated_dirs"] == ["app/build"]
+    assert set(result.details["ignored_local_paths"]) == {"build", "app/build/dist"}
+
+
 def test_secret_check_detects_obvious_risk_hint(tmp_path: Path) -> None:
     (tmp_path / "settings.py").write_text("API" + "_KEY = 'not-real'\n", encoding="utf-8")
 

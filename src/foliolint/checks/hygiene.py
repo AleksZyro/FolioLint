@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from foliolint.check_metadata import HYGIENE
 from foliolint.checks.common import GENERATED_DIRS, _iter_paths, _read_text
@@ -18,6 +18,9 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
     threshold_bytes = config.thresholds.large_file_mb * 1024 * 1024
     tracked_paths = _git_tracked_paths(path)
     gitignore_patterns = _read_gitignore_patterns(path) if tracked_paths is None else []
+    tracked_dirs = {
+        parent.as_posix() for file in tracked_paths or () for parent in PurePosixPath(file).parents
+    }
 
     for item in _iter_paths(path, config):
         rel = item.relative_to(path).as_posix()
@@ -29,7 +32,9 @@ def check_hygiene(path: Path, config: ShowcaseConfig) -> CheckResult:
         if tracked_paths is None:
             ignored = _matches_gitignore(rel, is_dir, gitignore_patterns)
         else:
-            ignored = hygiene_path and not _is_git_tracked(rel, is_dir, tracked_paths)
+            ignored = (
+                hygiene_path and rel not in tracked_paths and not (is_dir and rel in tracked_dirs)
+            )
         if ignored:
             if hygiene_path:
                 ignored_local_paths.append(rel)
@@ -146,11 +151,3 @@ def _git_tracked_paths(root: Path) -> set[str] | None:
         return None
 
     return {path for path in result.stdout.split("\0") if path}
-
-
-def _is_git_tracked(rel_path: str, is_dir: bool, tracked_paths: set[str]) -> bool:
-    if rel_path in tracked_paths:
-        return True
-    if is_dir:
-        return any(path.startswith(f"{rel_path}/") for path in tracked_paths)
-    return False
