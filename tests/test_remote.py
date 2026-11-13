@@ -1,5 +1,6 @@
 import json
 import zipfile
+from http.client import IncompleteRead
 from io import BytesIO
 from pathlib import Path
 
@@ -214,6 +215,36 @@ def test_download_zip_stops_while_streaming_large_response(tmp_path: Path, monke
         assert "protects your disk space" in str(error)
     else:
         raise AssertionError("Expected RemoteScanError")
+
+
+def test_scan_url_handles_interrupted_download_and_cleans_up(monkeypatch) -> None:
+    attempts = []
+    directories = []
+
+    class InterruptedResponse(_FakeResponse):
+        def read(self, size: int = -1) -> bytes:
+            raise IncompleteRead(b"", 1)
+
+    def open_url(url, timeout):
+        attempts.append(url)
+        return InterruptedResponse(b"", content_length=None)
+
+    original_download = remote.download_zip
+
+    def record_download(url, destination, **kwargs):
+        directories.append(destination.parent)
+        original_download(url, destination, **kwargs)
+
+    monkeypatch.setattr(remote.urllib.request, "urlopen", open_url)
+    monkeypatch.setattr(remote, "download_zip", record_download)
+
+    result = CliRunner().invoke(app, ["scan-url", "https://github.com/example/project"])
+
+    assert result.exit_code == 2
+    assert "could not download" in result.stderr
+    assert [url.rsplit("/", 1)[-1] for url in attempts] == ["main.zip", "master.zip"]
+    assert len(directories) == 2
+    assert all(not directory.exists() for directory in directories)
 
 
 def test_extract_zip_rejects_too_many_files(tmp_path: Path) -> None:

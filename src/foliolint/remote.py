@@ -8,6 +8,7 @@ import zipfile
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from http.client import IncompleteRead
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -155,7 +156,7 @@ def download_zip(
         raise RemoteScanError(
             "FolioLint could not download this repository. Please try again later."
         ) from error
-    except OSError as error:
+    except (OSError, IncompleteRead) as error:
         raise RemoteScanError(
             "FolioLint could not download this repository. Check your internet connection "
             "and the repository URL."
