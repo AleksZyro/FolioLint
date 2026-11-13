@@ -283,6 +283,24 @@ def test_scan_url_invalid_url_returns_clear_error() -> None:
     assert "https://github.com/OWNER/REPO" in result.stderr
 
 
+def test_scan_url_reports_invalid_config_and_cleans_up(monkeypatch) -> None:
+    downloads: list[Path] = []
+
+    def fake_download_zip(url: str, destination: Path, *, max_download_mb: int) -> None:
+        downloads.append(destination)
+        with zipfile.ZipFile(destination, "w") as archive:
+            archive.writestr("example-main/.foliolint.toml", "ignore = false")
+
+    monkeypatch.setattr(remote, "download_zip", fake_download_zip)
+
+    result = CliRunner().invoke(app, ["scan-url", "https://github.com/example/project"])
+
+    assert result.exit_code == 2
+    assert "[ignore] must be a table" in result.stderr
+    assert len(downloads) == 1
+    assert not downloads[0].parent.exists()
+
+
 def test_scan_url_fail_under(tmp_path: Path, monkeypatch) -> None:
     archive = _make_repo_zip(tmp_path, "FolioLint-main")
 

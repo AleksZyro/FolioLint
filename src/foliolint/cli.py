@@ -13,7 +13,7 @@ from rich.table import Table
 
 from foliolint.baseline import compare_baseline, load_baseline, save_baseline
 from foliolint.checks import CHECK_REGISTRY
-from foliolint.config import CONFIG_FILE, DEFAULT_CONFIG
+from foliolint.config import CONFIG_FILE, DEFAULT_CONFIG, ConfigError
 from foliolint.github_report import render_github_report
 from foliolint.models import ScanReport
 from foliolint.remote import DEFAULT_MAX_DOWNLOAD_MB, RemoteScanError, prepare_remote_repository
@@ -153,7 +153,11 @@ def scan(
     """Scan a repository path."""
     _validate_score_options(no_score, fail_under)
 
-    report = scan_project(path, include_score=not no_score, strict=strict)
+    try:
+        report = scan_project(path, include_score=not no_score, strict=strict)
+    except ConfigError as error:
+        typer.echo(f"Error: {error}", err=True)
+        raise typer.Exit(2) from error
     _finish_scan(
         report,
         include_score=not no_score,
@@ -200,7 +204,7 @@ def scan_url(
                     "temporary_copy": "removed after scan",
                 },
             )
-    except RemoteScanError as error:
+    except (RemoteScanError, ConfigError) as error:
         typer.echo(f"Error: {error}", err=True)
         raise typer.Exit(2) from error
 

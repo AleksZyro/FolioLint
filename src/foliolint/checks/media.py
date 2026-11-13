@@ -15,6 +15,8 @@ def check_media(path: Path, config: ShowcaseConfig) -> CheckResult:
         in_media_dir = any(rel.startswith(f"{media_dir}/") for media_dir in MEDIA_DIRS)
         if in_media_dir and file.suffix.lower() in MEDIA_EXTENSIONS:
             media_files.append(rel)
+            if len(media_files) == 20:
+                break
 
     readme_text = _read_text(path / "README.md").lower()
     readme_mentions_media = any(
@@ -38,7 +40,7 @@ def check_media(path: Path, config: ShowcaseConfig) -> CheckResult:
         points=MEDIA.max_points if found else 0,
         max_points=MEDIA.max_points,
         details={
-            "media_files": media_files[:20],
+            "media_files": media_files,
             "readme_mentions_media": readme_mentions_media,
         },
         explanation=explanation,

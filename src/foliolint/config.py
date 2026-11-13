@@ -19,6 +19,10 @@ large_file_mb = 5
 """
 
 
+class ConfigError(ValueError):
+    """The repository configuration could not be read or has invalid sections."""
+
+
 @dataclass(frozen=True)
 class Thresholds:
     large_file_mb: int = 5
@@ -44,11 +48,17 @@ class ShowcaseConfig:
 
 def load_config(project_path: Path) -> ShowcaseConfig:
     config_path = project_path / CONFIG_FILE
-    if not config_path.exists():
+    try:
+        with config_path.open("rb") as file:
+            raw = tomllib.load(file)
+    except FileNotFoundError:
         return ShowcaseConfig()
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        raise ConfigError(f"Could not read {config_path}: {error}") from error
 
-    with config_path.open("rb") as file:
-        raw = tomllib.load(file)
+    for section in ("ignore", "thresholds", "project"):
+        if section in raw and not isinstance(raw[section], dict):
+            raise ConfigError(f"{config_path}: [{section}] must be a table.")
 
     ignore = raw.get("ignore", {})
     large_file_mb = raw.get("thresholds", {}).get("large_file_mb", 5)

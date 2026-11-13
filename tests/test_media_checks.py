@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from foliolint.checks import check_demo, check_media
+from foliolint.checks import check_demo, check_media, media
 from foliolint.config import ShowcaseConfig
 
 
@@ -20,6 +20,22 @@ def test_media_check_finds_screenshot(tmp_path: Path) -> None:
 
     assert result.status == "ok"
     assert result.points == 10
+
+
+def test_media_check_stops_after_report_limit(tmp_path: Path, monkeypatch) -> None:
+    visited = []
+
+    def files(path, config):
+        for index in range(25):
+            visited.append(index)
+            yield path / "assets" / f"image-{index}.png"
+
+    monkeypatch.setattr(media, "_iter_files", files)
+
+    result = check_media(tmp_path, ShowcaseConfig())
+
+    assert result.details["media_files"] == [f"assets/image-{index}.png" for index in range(20)]
+    assert visited == list(range(20))
 
 
 def test_demo_check_detects_github_pages_and_localhost(tmp_path: Path) -> None:

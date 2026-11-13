@@ -1,12 +1,33 @@
 import json
 from pathlib import Path
 
+import pytest
 from typer.testing import CliRunner
 
 from foliolint.checks import detect_project_type
 from foliolint.cli import app
 from foliolint.config import CONFIG_FILE, load_config
 from foliolint.scanner import scan_project
+
+
+@pytest.mark.parametrize(
+    ("content", "message"),
+    [
+        ("[project", "Could not read"),
+        ("ignore = false", "[ignore] must be a table"),
+        ("thresholds = 3", "[thresholds] must be a table"),
+        ("project = []", "[project] must be a table"),
+    ],
+)
+def test_scan_reports_invalid_config(tmp_path: Path, content: str, message: str) -> None:
+    (tmp_path / CONFIG_FILE).write_text(content, encoding="utf-8")
+
+    result = CliRunner().invoke(app, ["scan", str(tmp_path), "--format", "json"])
+
+    assert result.exit_code == 2
+    assert result.stdout == ""
+    assert CONFIG_FILE in result.stderr
+    assert message in result.stderr
 
 
 def test_config_uses_defaults_without_file(tmp_path: Path) -> None:
