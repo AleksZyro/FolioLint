@@ -62,7 +62,7 @@ def load_config(project_path: Path) -> ShowcaseConfig:
 
     ignore = raw.get("ignore", {})
     large_file_mb = raw.get("thresholds", {}).get("large_file_mb", 5)
-    if not isinstance(large_file_mb, int) or large_file_mb < 1:
+    if type(large_file_mb) is not int or large_file_mb < 1:
         large_file_mb = 5
     project_type = raw.get("project", {}).get("type")
     return ShowcaseConfig(

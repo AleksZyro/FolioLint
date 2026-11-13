@@ -37,6 +37,15 @@ def test_config_uses_defaults_without_file(tmp_path: Path) -> None:
     assert config.ignore.paths == []
 
 
+@pytest.mark.parametrize("value", ["true", "false", "0", "1.5"])
+def test_invalid_large_file_threshold_uses_default(tmp_path: Path, value: str) -> None:
+    (tmp_path / CONFIG_FILE).write_text(
+        f"[thresholds]\nlarge_file_mb = {value}\n", encoding="utf-8"
+    )
+
+    assert load_config(tmp_path).thresholds.large_file_mb == 5
+
+
 def test_config_reads_foliolint_toml(tmp_path: Path) -> None:
     (tmp_path / ".foliolint.toml").write_text(
         """
