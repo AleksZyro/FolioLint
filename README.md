@@ -2,384 +2,53 @@
 
 **English** | [Deutsch](README_DE.md)
 
-FolioLint is a local Python portfolio linting CLI that checks whether a repository is prepared for public presentation on GitHub. It focuses on portfolio and showcase readiness: README, setup, usage, tests, license, screenshots, demo hints, repository hygiene, large files and obvious secret risk hints.
+FolioLint checks what readers can find when they open a repository: a README, setup instructions, a licence, tests and demo material. It also flags common hygiene issues and obvious secret patterns. Local scans work offline.
 
-FolioLint helps you find boring but important repo presentation issues before sharing a project publicly.
+![FolioLint scan-url](docs/assets/foliolint-scan-url-gitfut.png)
 
-## Project identity
+## Installation
 
-This repository is part of the public portfolio of **Aleksandar Nikolić** (**Aleksandar Nikolic**, **AleksZyro**), an IMS student from Buchs AG, Switzerland.
+From the FolioLint checkout, use Python 3.11 or later in a virtual environment.
 
-- Portfolio: [aleksandar-nikolic.ch](https://aleksandar-nikolic.ch/)
-- GitHub: [github.com/AleksZyro](https://github.com/AleksZyro)
-- Contact and current availability: [aleksandar-nikolic.ch/#contact](https://aleksandar-nikolic.ch/#contact)
-
-It is not a code quality tool, not a security scanner, not an AI tool and not a recruiter oracle. The goal is a repeatable local checklist with transparent scoring.
-
-![FolioLint scan-url example](docs/assets/foliolint-scan-url-gitfut.png)
-
-<details>
-<summary>Search profile</summary>
-
-This repository is relevant for searches such as:
-
-- portfolio linter for GitHub repositories
-- repository showcase readiness checker
-- README checklist CLI
-- Python Typer CLI for project hygiene
-- local repo audit tool for screenshots, license, tests and demo links
-- GitHub portfolio project checker without an API key
-
-</details>
-
-## What It Checks
-
-- README.md presence and common showcase sections
-- License file presence
-- Test folder, test files and CI hints
-- Screenshots or demo media
-- Hosted demo links or local start instructions
-- Generated folders, large files, `.env` files and logs
-- Obvious secret risk strings
-- Common project metadata
-
-## What It Is Not
-
-- No AI module
-- No API key
-- Local `scan PATH` runs do not need internet access
-- No automatic README or license editing
-- No claim that a project is good or bad
-- No replacement for real secret scanning
-
-## Local Installation
-
-Use Python 3.11 or newer. Run the install command from the FolioLint project folder, where `pyproject.toml` is located.
-
-If you downloaded or cloned FolioLint into another folder, change the `cd` command to that folder. For example, if FolioLint is in your Downloads folder on Windows, use `cd "$env:USERPROFILE\Downloads\FolioLint"` in PowerShell.
-
-<details open>
-<summary>Install on Windows PowerShell</summary>
-
-```powershell
-git clone https://github.com/AleksZyro/FolioLint.git
-cd FolioLint
+```sh
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[dev]"
 ```
 
-If PowerShell blocks activation scripts, run this once in the same terminal and then activate again:
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-</details>
-
-<details>
-<summary>Install on Windows Command Prompt</summary>
-
-```bat
-git clone https://github.com/AleksZyro/FolioLint.git
-cd FolioLint
-py -3.11 -m venv .venv
-.venv\Scripts\activate.bat
-py -m pip install -e ".[dev]"
-```
-
-</details>
-
-<details>
-<summary>Install on macOS or Linux</summary>
-
-```bash
-git clone https://github.com/AleksZyro/FolioLint.git
-cd FolioLint
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -e ".[dev]"
-```
-
-</details>
+Activate with `source .venv/bin/activate` on macOS or Linux, or `.\.venv\Scripts\Activate.ps1` in PowerShell. Run `python -m pip install .`. On Windows you can also use `.\.venv\Scripts\python -m pip install .` and call `.\.venv\Scripts\foliolint` directly.
 
 ## Usage
 
-The `foliolint` commands are the same on Windows, macOS and Linux:
-
-```text
-foliolint scan .
-foliolint scan . --format json
-foliolint scan . --format markdown
-foliolint scan . --format github
-foliolint list-checks
-foliolint list-checks --format json
-foliolint scan . --strict
-foliolint scan . --fail-under 75
-foliolint scan . --details
-foliolint scan . --format markdown --output report.md
-foliolint init
-foliolint scan . --format html --output report.html
+```sh
+foliolint scan . --explain
+foliolint scan ../SortLab --format json --output report.json
+foliolint scan-url https://github.com/AleksZyro/FolioLint
 ```
 
-The dot in `foliolint scan .` means "scan the folder I am currently in". To scan a different local project, replace the dot with that project's folder path. Paths with spaces should be wrapped in quotes.
+`scan-url` downloads a temporary ZIP of a public GitHub repository (50 MB download limit by default). Reports support text, JSON, Markdown, HTML and GitHub Actions annotations. `--fail-under` sets a CI threshold.
 
-Use `--output PATH` to save text, JSON, Markdown or HTML output to a file. `foliolint init` creates a commented `.foliolint.toml` example and refuses to overwrite an existing configuration.
-
-Use `foliolint list-checks` to discover stable check IDs, categories, descriptions and
-scoring relevance before configuring `[ignore].checks`. Its JSON format also includes
-maximum points, whether each check is ignorable and project-type scoring caps.
-
-HTML reports are useful for opening a local result in a browser or attaching it to a review. They are generated locally and are not uploaded anywhere.
-
-Save and compare a baseline when you want to track whether warnings change over time:
-
-```text
-foliolint scan . --save-baseline .foliolint-baseline.json
-foliolint scan . --compare-baseline .foliolint-baseline.json --format markdown
-```
-
-New baselines include a schema version and repository provenance. Local Git scans record a
-normalised `origin` remote when available; `scan-url` records the public source URL and branch.
-FolioLint refuses a comparison when both identities are available but differ. Older baselines and
-local folders without Git metadata remain comparable, but the comparison is labelled as not
-verified.
-
-<details>
-<summary>Local path examples</summary>
-
-```powershell
-foliolint scan ..\SortLab --explain
-foliolint scan ..\BESP2074 --no-score
-foliolint scan "C:\Users\Example\Downloads\My Project" --explain
-```
-
-```bash
-foliolint scan ../SortLab --explain
-foliolint scan ../BESP2074 --no-score
-foliolint scan "/Users/example/Downloads/My Project" --explain
-```
-
-</details>
-
-<details open>
-<summary>Remote scans for public GitHub repositories</summary>
-
-```text
-foliolint scan-url https://github.com/AleksZyro/FolioLint --explain
-foliolint scan-url https://github.com/OWNER/REPO --format json
-foliolint scan-url https://github.com/OWNER/REPO --format markdown
-foliolint scan-url https://github.com/OWNER/REPO --branch main
-foliolint scan-url https://github.com/OWNER/REPO --max-download-mb 100
-```
-
-Use `scan-url` when you want to check a public GitHub repository without manually cloning or keeping a copy of it.
-
-`scan PATH` checks a folder that already exists on your computer and does not need internet access. `scan-url URL` downloads a public GitHub repository as a temporary ZIP file, checks it locally, and deletes the downloaded files afterwards. The temporary files are created in your operating system's temp folder, not in the folder where you run FolioLint. It does not use a GitHub API key. Private repositories are not supported by `scan-url`.
-
-To protect disk space, `scan-url` stops downloads above 50 MB by default. Use `--max-download-mb` only when you intentionally want to scan a larger repository.
-
-</details>
-
-Local demo command:
-
-```text
-foliolint scan . --no-score
-```
-
-## Example Output
-
-```text
-FolioLint
-
-Path: .
-Score: 74/100
-Status: Needs polish
-
-Category          Status       Notes
-README            OK           Purpose, setup and usage found
-License           Warning      No LICENSE file found
-Tests             OK           pytest tests detected
-Media             Warning      No screenshots or demo media found
-Demo              OK           Local start instructions found
-Hygiene           Warning      _site folder detected
-Secrets           OK           No obvious secret patterns found
-Metadata          OK           pyproject.toml found
-```
-
-JSON output is available for automation:
-
-<details>
-<summary>JSON output example</summary>
+Example from `foliolint list-checks --format json` (excerpt):
 
 ```json
-{
-  "score": 90,
-  "status": "Showcase-ready",
-  "checks": [
-    {
-      "category": "README",
-      "status": "ok",
-      "message": "README hints found: purpose, setup, usage, tests, status or limitations, screenshot or demo.",
-      "points": 25,
-      "max_points": 25
-    }
-  ],
-  "recommendations": []
-}
+{"id": "readme", "category": "README", "description": "README purpose, setup, usage and limits", "max_points": 25, "scored": true, "ignorable": true, "project_type_max_points": {}}
 ```
 
-</details>
+## Configuration and scoring
 
-Markdown output is available for comments, issue descriptions or CI summaries:
+`foliolint init` creates `.foliolint.toml` in the current directory. Configure ignored paths, check IDs, the large-file threshold or the project type. CLI and library profiles give less weight to media and demos. Ignored checks are excluded from the denominator. `--details` shows evidence and `--no-score` hides the score.
 
-```bash
-foliolint scan . --format markdown
+Use `--save-baseline FILE` and `--compare-baseline FILE` to track changes. Baselines record repository provenance when available. Mismatched identities prevent comparison. Legacy baselines without provenance are marked unverified.
+
+The rules measure presentation signals. Assessing code quality and investigating possible secrets require separate review.
+
+[Scoring](docs/scoring.md) · [Config examples](docs/examples) · [Limits](docs/limitations.md) · [Warnings](docs/warnings.md)
+
+## Development
+
+```sh
+python -m pip install -e ".[dev]"
+pytest -q
+ruff check .
+ruff format --check .
 ```
 
-## Score
-
-The score is a public showcase readiness score from 0 to 100. It is not an objective project quality score.
-
-- 0-49: Not ready
-- 50-74: Needs polish
-- 75-89: Almost showcase-ready
-- 90-100: Showcase-ready
-
-Run with `--explain` to see why category points were given or deducted. README explanations include matching headings, code commands or keyword heuristics.
-
-Run with `--details` to show the files, patterns or workflow hints that caused a check. This is useful when a warning looks like a false positive.
-
-Run with `--no-score` to hide the score completely. Run with `--fail-under 75` when CI should fail below a chosen readiness threshold.
-
-Full scoring rules are documented in [docs/scoring.md](docs/scoring.md).
-
-<details>
-<summary>Exit codes</summary>
-
-Exit codes:
-
-- `0`: Scan completed.
-- `1`: Scan completed, but the score was below `--fail-under`.
-- `2`: Invalid input, unsupported URL or remote download problem.
-
-</details>
-
-## Configuration
-
-Create an optional `.foliolint.toml` in the scanned repository:
-
-```toml
-[ignore]
-paths = ["dist", "docs/assets/large-demo.mp4"]
-checks = ["demo-link"]
-
-[thresholds]
-large_file_mb = 10
-
-[project]
-type = "local-app"
-```
-
-Ignored paths are skipped by file-based checks. Ignored checks appear as ignored and do not affect the score.
-
-<details>
-<summary>Project type presets</summary>
-
-Supported project types are optional and intentionally simple:
-
-- `web-app`: default weighting, demos and screenshots usually matter.
-- `local-app`, `local-tool`, `python-cli`, `node-cli`: screenshots and demos count less.
-- `cli`: screenshots and demos count less.
-- `library`: screenshots and demos count less.
-- `learning-project`: screenshots and demos count less.
-
-Example configs are available in [docs/examples](docs/examples).
-
-</details>
-
-## GitHub Actions
-
-For a CI check, copy [docs/examples/foliolint.yml](docs/examples/foliolint.yml) to `.github/workflows/foliolint.yml` in your repository. It runs FolioLint with a minimum score of 75 and adds the Markdown report to the GitHub Actions summary.
-
-`foliolint scan . --format github --fail-under 75` emits GitHub workflow warning
-annotations for existing files with concrete evidence (for example an incomplete README
-or a secret risk hint with a line number). Warnings without a file location remain plain
-log messages. Ignored checks produce no warnings. `--output PATH` can save this format too.
-Use the command on the repository checked out by the workflow; `scan-url --format github`
-keeps remote warnings as plain log messages to avoid annotating an unrelated local checkout.
-The output is generated locally and needs no GitHub token or API access. `--fail-under`
-controls the exit code independently of annotations; a warning alone does not fail a job.
-
-FolioLint measures portfolio/showcase readiness. It is not a code-quality analyzer,
-security scanner, AI reviewer or objective recruiter score.
-
-## Manual Checks Against Real Repositories
-
-The automated test suite is offline. When internet access is available, use the optional smoke
-checks in [docs/real-repository-checks.md](docs/real-repository-checks.md) to verify public ZIP
-downloads against real repositories such as FolioLint, PathLab and SortLab. These checks are
-manual and are not required for normal development or CI.
-
-## Limits
-
-The checks are deterministic heuristics. They cannot understand full project context. README quality, security posture and portfolio value still need human judgement.
-
-More detail is in [docs/limitations.md](docs/limitations.md).
-
-For examples of warnings that can be safe to ignore, see [docs/warnings.md](docs/warnings.md).
-
-<details>
-<summary>Real repository smoke tests</summary>
-
-FolioLint was tested against real local portfolio repositories during MVP development:
-
-```bash
-foliolint scan ../SortLab --explain
-foliolint scan ../BESP-Balkan-Economy-Simulation-Player- --explain
-```
-
-These runs helped improve noisy warnings around generated folders, dependency folders and obvious secret-risk hints.
-
-</details>
-
-<details>
-<summary>Repository metadata suggestion</summary>
-
-- Description: `Local Python CLI for GitHub portfolio linting and repository showcase readiness checks.`
-- Topics: `python`, `cli`, `portfolio`, `github`, `readme`, `linter`, `repository-hygiene`, `showcase-readiness`
-
-</details>
-
-## Roadmap
-
-- Improve wording based on public feedback
-- Add more project-specific checks without turning the score into a quality judgement
-- Make intentional false-positive exclusions easier to configure
-- Expand the offline fixture corpus for README, secret-risk and project-type regressions
-- Improve remote download progress and error messages while keeping the local scan offline
-- Keep the MVP local, rule-based and free of API-key requirements
-
-## Feedback
-
-Feedback is welcome, especially confusing results, false positives, missing checks and unclear scoring. See [docs/feedback.md](docs/feedback.md).
-
-<details>
-<summary>FAQ</summary>
-
-**Q: Is this an AI tool?**  
-A: No. The MVP is fully rule-based and runs locally.
-
-**Q: Is the score objective?**  
-A: No. It is a transparent readiness score for public presentation, not a universal project quality score.
-
-**Q: Why not just use a checklist?**  
-A: A checklist is useful. This tool automates common checks so they can be repeated locally or in CI.
-
-**Q: Is this a security scanner?**  
-A: No. It only detects obvious risky patterns and should not replace proper secret scanning.
-
-**Q: Will this make people optimise for fake portfolio points?**  
-A: The tool intentionally explains limitations and supports `--no-score`. The goal is clarity and safer public sharing, not gaming.
-
-</details>
+[MIT](LICENSE) · [Portfolio](https://aleksandar-nikolic.ch/)

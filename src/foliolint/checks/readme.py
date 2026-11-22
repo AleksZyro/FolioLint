@@ -7,12 +7,13 @@ from foliolint.check_metadata import README
 from foliolint.checks.common import _has_any_term, _read_text
 from foliolint.config import ShowcaseConfig
 from foliolint.models import CheckResult
+from foliolint.paths import regular_file
 
 
 def check_readme(path: Path, config: ShowcaseConfig) -> CheckResult:
     del config
     readme = path / "README.md"
-    if not readme.exists():
+    if not regular_file(readme):
         return CheckResult(
             category=README.category,
             status="warning",

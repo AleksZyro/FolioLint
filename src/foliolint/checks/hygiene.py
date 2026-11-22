@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path, PurePosixPath
 
@@ -142,12 +143,11 @@ def _matches_gitignore(rel_path: str, is_dir: bool, patterns: list[str]) -> bool
 def _git_tracked_paths(root: Path) -> set[str] | None:
     try:
         result = subprocess.run(
-            ["git", "-C", str(root), "ls-files", "-z"],
+            ["git", "-C", str(root), "-c", "core.fsmonitor=false", "ls-files", "-z"],
             check=True,
             capture_output=True,
-            text=True,
         )
     except (OSError, subprocess.CalledProcessError):
         return None
 
-    return {path for path in result.stdout.split("\0") if path}
+    return {os.fsdecode(path) for path in result.stdout.split(b"\0") if path}

@@ -8,10 +8,11 @@ from foliolint.checks.common import _ignored_paths, _iter_files, _read_text, _wo
 from foliolint.checks.project_type import _read_package_json
 from foliolint.config import ShowcaseConfig
 from foliolint.models import CheckResult
+from foliolint.paths import directory
 
 
 def check_tests(path: Path, config: ShowcaseConfig) -> CheckResult:
-    has_tests_dir = "tests" not in _ignored_paths(config) and (path / "tests").is_dir()
+    has_tests_dir = "tests" not in _ignored_paths(config) and directory(path / "tests")
     test_files = list(
         islice((file for file in _iter_files(path, config) if _is_test_file(file)), 10)
     )
