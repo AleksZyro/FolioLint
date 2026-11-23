@@ -4,12 +4,14 @@ import json
 import tomllib
 from pathlib import Path
 
+from foliolint.paths import directory, regular_file
+
 
 def detect_project_type(path: Path) -> tuple[str | None, list[str]]:
     """Return a simple project type and the files that support the detection."""
     evidence: list[str] = []
     package_path = path / "package.json"
-    has_package = package_path.exists()
+    has_package = regular_file(package_path)
     package = _read_package_json(package_path) if has_package else {}
     if has_package:
         evidence.append("package.json")
@@ -23,7 +25,7 @@ def detect_project_type(path: Path) -> tuple[str | None, list[str]]:
     has_react = (
         any("react" in name.lower() for name in dependency_names)
         or any(path.glob("*.jsx"))
-        or any((path / "src").glob("*.jsx"))
+        or (directory(path / "src") and any((path / "src").glob("*.jsx")))
     )
     if vite_file:
         evidence.append(vite_file.name)
@@ -39,7 +41,7 @@ def detect_project_type(path: Path) -> tuple[str | None, list[str]]:
             evidence.append("package.json scripts")
         return "node", evidence
     pyproject_path = path / "pyproject.toml"
-    if pyproject_path.exists():
+    if regular_file(pyproject_path):
         evidence.append("pyproject.toml")
         pyproject = _read_pyproject(pyproject_path)
         project = pyproject.get("project", {})
@@ -57,6 +59,8 @@ def detect_project_type(path: Path) -> tuple[str | None, list[str]]:
 
 
 def _read_package_json(path: Path) -> dict:
+    if not regular_file(path):
+        return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):

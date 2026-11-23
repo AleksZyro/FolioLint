@@ -6,6 +6,7 @@ from os import scandir
 from pathlib import Path
 
 from foliolint.config import ShowcaseConfig
+from foliolint.paths import directory, regular_file
 
 
 def _iter_files(
@@ -38,10 +39,16 @@ def _iter_paths(
                 item = folder / entry.name
                 if ignored and item.relative_to(path).as_posix() in ignored:
                     continue
+                if entry.is_symlink():
+                    continue
                 if entry.is_dir(follow_symlinks=False):
+                    if not directory(item):
+                        continue
                     if skip_dirs and entry.name in skip_dirs:
                         continue
                     children.append(item)
+                elif not regular_file(item):
+                    continue
                 yield item
         pending.extend(reversed(children))
 
@@ -51,7 +58,7 @@ def _ignored_paths(config: ShowcaseConfig) -> set[str]:
 
 
 def _read_text(path: Path) -> str:
-    if not path.is_file():
+    if not regular_file(path):
         return ""
     try:
         return path.read_text(encoding="utf-8", errors="ignore")
@@ -65,10 +72,12 @@ def _has_any_term(text: str, terms: list[str]) -> bool:
 
 def _workflow_files(path: Path) -> list[Path]:
     workflows = path / ".github" / "workflows"
-    if not workflows.is_dir():
+    if not directory(path / ".github") or not directory(workflows):
         return []
     return [
-        file for file in workflows.iterdir() if file.suffix in {".yml", ".yaml"} and file.is_file()
+        file
+        for file in workflows.iterdir()
+        if file.suffix in {".yml", ".yaml"} and regular_file(file)
     ]
 
 

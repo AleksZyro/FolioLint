@@ -4,6 +4,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from foliolint.paths import regular_file
+
 CONFIG_FILE = ".foliolint.toml"
 DEFAULT_CONFIG = """# Optional FolioLint configuration
 
@@ -48,6 +50,8 @@ class ShowcaseConfig:
 
 def load_config(project_path: Path) -> ShowcaseConfig:
     config_path = project_path / CONFIG_FILE
+    if config_path.is_symlink() or (config_path.exists() and not regular_file(config_path)):
+        raise ConfigError(f"{config_path}: expected a regular configuration file.")
     try:
         with config_path.open("rb") as file:
             raw = tomllib.load(file)

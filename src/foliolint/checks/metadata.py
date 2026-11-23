@@ -7,6 +7,7 @@ from foliolint.checks.common import _workflow_files
 from foliolint.checks.project_type import detect_project_type
 from foliolint.config import ShowcaseConfig
 from foliolint.models import CheckResult
+from foliolint.paths import regular_file
 
 
 def check_metadata(path: Path, config: ShowcaseConfig) -> CheckResult:
@@ -14,9 +15,9 @@ def check_metadata(path: Path, config: ShowcaseConfig) -> CheckResult:
     workflows = _workflow_files(path)
     project_type, type_evidence = detect_project_type(path)
     found = {
-        "pyproject.toml": (path / "pyproject.toml").exists(),
-        "requirements.txt": (path / "requirements.txt").exists(),
-        "package.json": (path / "package.json").exists(),
+        "pyproject.toml": regular_file(path / "pyproject.toml"),
+        "requirements.txt": regular_file(path / "requirements.txt"),
+        "package.json": regular_file(path / "package.json"),
         "vite.config": any(path.glob("vite.config.*")),
         ".github/workflows": bool(workflows),
         "workflow_files": [file.relative_to(path).as_posix() for file in workflows],

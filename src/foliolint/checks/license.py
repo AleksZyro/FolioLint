@@ -5,12 +5,13 @@ from pathlib import Path
 from foliolint.check_metadata import LICENSE
 from foliolint.config import ShowcaseConfig
 from foliolint.models import CheckResult
+from foliolint.paths import regular_file
 
 
 def check_license(path: Path, config: ShowcaseConfig) -> CheckResult:
     del config
     found = any(
-        child.name.upper() in {"LICENSE", "LICENCE", "COPYING"} and child.is_file()
+        child.name.upper() in {"LICENSE", "LICENCE", "COPYING"} and regular_file(child)
         for child in path.iterdir()
     )
     if found:
